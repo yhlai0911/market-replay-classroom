@@ -1,0 +1,10 @@
+{
+  "name": "market-replay-classroom",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "python -m http.server 4173 --directory dist",
+    "check": "node scripts/check-release.mjs"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+.openai/
+qa/
+.env
+.env.*
+*.log
+market-replay-save*.json
+market-replay-original*.json
+market-replay-previous*.json
+market-replay-learning-report*.html
+*.pdf
+.DS_Store

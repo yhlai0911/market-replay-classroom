@@ -1,0 +1,42 @@
+import {createScenario} from './scenario.js';
+import {fresh,decide} from './engine.js';
+export const SAVE_KEY='market-replay-save-v1', BACKUP_KEY='market-replay-previous-v1';
+export async function datasetVersion(data){const bytes=new TextEncoder().encode(JSON.stringify(data));const digest=await crypto.subtle.digest('SHA-256',bytes);return 'sha256:'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
+const fail=message=>{throw Error(message)};
+function str(v,max,label){if(typeof v!=='string'||v.length>max)fail(`${label}格式不正確`);return v;}
+function extras(x={}){return {side:['buy','sell','hold'].includes(x.side)?x.side:fail('委託模式格式不正確'),quantity:str(x.quantity,30,'數量草稿'),reason:str(x.reason,1000,'理由'),studentName:str(x.studentName,100,'姓名'),studentId:str(x.studentId,100,'學號'),notes:str(x.notes,10000,'操作筆記'),reflection:str(x.reflection,10000,'反思')};}
+export const emptyDraft=()=>({side:'buy',quantity:'100',reason:'',studentName:'',studentId:'',notes:'',reflection:''});
+export function makeSave(s,state,version,draft=emptyDraft(),createdAt=new Date().toISOString()){
+ return {format:'market-replay-save',version:1,datasetVersion:version,createdAt,updatedAt:new Date().toISOString(),scenario:{seed:s.seed,startDate:s.startDate,requestedStartDate:s.requestedStartDate??null,startYear:s.startYear,length:s.length},state,draft:extras(draft)};
+}
+export function restoreSave(raw,data,version){
+ if(typeof raw!=='string'||raw.length>2000000)fail('存檔過大或格式不正確');
+ let x;try{x=JSON.parse(raw)}catch{fail('存檔 JSON 損壞，已保留原檔')}
+ if(!x||x.format!=='market-replay-save'||x.version!==1)fail('不支援此存檔版本，已保留原檔');
+ if(x.datasetVersion!==version)fail('歷史資料版本不同，無法安全續玩；已保留原檔');
+ const p=x.scenario;if(!p||![20,40,60,120].includes(p.length)||typeof p.startDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||typeof p.startYear!=='string'||!/^all$|^\d{4}$/.test(p.startYear))fail('回合設定損壞');
+ str(p.seed,200,'種子');
+ for(const key of ['createdAt','updatedAt'])if(typeof x[key]!=='string'||!Number.isFinite(Date.parse(x[key])))fail('存檔時間格式不正確');
+ if(p.requestedStartDate!==null&&p.requestedStartDate!==p.startDate)fail('指定開始日設定損壞');
+ const s=createScenario(data,p);s.requestedStartDate=p.requestedStartDate;let state=fresh(s);
+ if(!x.state||!Array.isArray(x.state.journal)||x.state.journal.length>p.length)fail('交易紀錄損壞');
+ for(const j of x.state.journal){if(!j||!['buy','sell','hold'].includes(j.side)||!Number.isSafeInteger(j.requestedQuantity)||j.requestedQuantity<0)fail('交易紀錄損壞');str(j.reason,1000,'理由');state=decide(s,state,j.side,j.requestedQuantity,j.reason);}
+ // Rebuild all accounting and then-visible news from original data; never trust imported totals.
+ if(JSON.stringify(state)!==JSON.stringify(x.state))fail('交易紀錄或資產校驗失敗，已保留原檔');
+ return {s,state,draft:extras(x.draft),createdAt:x.createdAt};
+}
+export function createStore(storage){
+ let expected,blocked=false;
+ return {
+  read(){try{expected=storage.getItem(SAVE_KEY);return expected}catch(e){blocked=true;throw Error('瀏覽器無法讀取本機存檔；請使用 JSON 備份')}} ,
+  lock(){blocked=true},
+  write(save,{replace=false}={}){if(blocked&&!replace)fail('原存檔已保護，請先備份並明確開始新局或載入備份');
+   try{const current=storage.getItem(SAVE_KEY);if(current!==expected) {blocked=true;fail('另一分頁已更新存檔；請備份目前進度後重新整理，避免互相覆蓋')}
+    if(replace&&current!==null)storage.setItem(BACKUP_KEY,current);
+    const raw=JSON.stringify(save);storage.setItem(SAVE_KEY,raw);expected=raw;blocked=false;return save.updatedAt;
+   }catch(e){if(/另一分頁/.test(e.message))throw e;throw Error('本機保存失敗（空間不足或瀏覽器限制）；舊存檔未覆蓋，請立即匯出 JSON 備份')}
+  },
+  raw(){return expected},
+  previous(){return storage.getItem(BACKUP_KEY)}
+ };
+}

@@ -1,0 +1,2 @@
+// Shared chart model: include every visible moving-average point in the price scale.
+export function chartModel(all,limit=60){const bars=all.slice(-limit);const averages=n=>bars.map((b,i)=>{const ix=all.length-bars.length+i;return ix<n-1?null:all.slice(ix-n+1,ix+1).reduce((sum,b)=>sum+b.close,0)/n;});const ma5=averages(5),ma20=averages(20);const points=[...bars.flatMap(b=>[b.low,b.high]),...ma5,...ma20].filter(Number.isFinite);let lo=Math.min(...points),hi=Math.max(...points);const pad=(hi-lo)*.08||1;return {bars,ma5,ma20,lo:lo-pad,hi:hi+pad};}

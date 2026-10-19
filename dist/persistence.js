@@ -1,3 +1,4 @@
+import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js';
 import {createScenario} from './scenario.js';
 import {fresh,decide} from './engine.js';
 export const SAVE_KEY='market-replay-save-v1', BACKUP_KEY='market-replay-previous-v1';
@@ -7,22 +8,25 @@ function str(v,max,label){if(typeof v!=='string'||v.length>max)fail(`${label}格
 function extras(x={}){return {side:['buy','sell','hold'].includes(x.side)?x.side:fail('委託模式格式不正確'),quantity:str(x.quantity,30,'數量草稿'),reason:str(x.reason,1000,'理由'),studentName:str(x.studentName,100,'姓名'),studentId:str(x.studentId,100,'學號'),notes:str(x.notes,10000,'操作筆記'),reflection:str(x.reflection,10000,'反思')};}
 export const emptyDraft=()=>({side:'buy',quantity:'100',reason:'',studentName:'',studentId:'',notes:'',reflection:''});
 export function makeSave(s,state,version,draft=emptyDraft(),createdAt=new Date().toISOString()){
- return {format:'market-replay-save',version:1,datasetVersion:version,createdAt,updatedAt:new Date().toISOString(),scenario:{seed:s.seed,startDate:s.startDate,requestedStartDate:s.requestedStartDate??null,startYear:s.startYear,length:s.length},state,draft:extras(draft)};
+ return {format:'market-replay-save',version:2,datasetVersion:version,createdAt,updatedAt:new Date().toISOString(),scenario:{seed:s.seed,startDate:s.startDate,requestedStartDate:s.requestedStartDate??null,startYear:s.startYear,length:s.length,warmup:s.warmup,blind:s.blind??{revealed:true,everRevealed:true,revealedAtStep:0},indicatorSettings:s.indicatorSettings??defaultIndicatorSettings(),indicatorHistory:s.indicatorHistory??[{step:0,settings:defaultIndicatorSettings()}]},state,draft:extras(draft)};
 }
 export function restoreSave(raw,data,version){
  if(typeof raw!=='string'||raw.length>2000000)fail('存檔過大或格式不正確');
  let x;try{x=JSON.parse(raw)}catch{fail('存檔 JSON 損壞，已保留原檔')}
- if(!x||x.format!=='market-replay-save'||x.version!==1)fail('不支援此存檔版本，已保留原檔');
+ if(!x||x.format!=='market-replay-save'||![1,2].includes(x.version))fail('不支援此存檔版本，已保留原檔');
  if(x.datasetVersion!==version)fail('歷史資料版本不同，無法安全續玩；已保留原檔');
  const p=x.scenario;if(!p||![20,40,60,120].includes(p.length)||typeof p.startDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||typeof p.startYear!=='string'||!/^all$|^\d{4}$/.test(p.startYear))fail('回合設定損壞');
  str(p.seed,200,'種子');
  for(const key of ['createdAt','updatedAt'])if(typeof x[key]!=='string'||!Number.isFinite(Date.parse(x[key])))fail('存檔時間格式不正確');
  if(p.requestedStartDate!==null&&p.requestedStartDate!==p.startDate)fail('指定開始日設定損壞');
- const s=createScenario(data,p);s.requestedStartDate=p.requestedStartDate;let state=fresh(s);
+ if(x.version===2&&(!Number.isInteger(p.warmup)||p.warmup<40||p.warmup>500))fail('暖機設定損壞');
+ const s=createScenario(data,{...p,warmup:p.warmup??40});s.datasetVersion=version;s.requestedStartDate=p.requestedStartDate;let state=fresh(s);
  if(!x.state||!Array.isArray(x.state.journal)||x.state.journal.length>p.length)fail('交易紀錄損壞');
  for(const j of x.state.journal){if(!j||!['buy','sell','hold'].includes(j.side)||!Number.isSafeInteger(j.requestedQuantity)||j.requestedQuantity<0)fail('交易紀錄損壞');str(j.reason,1000,'理由');state=decide(s,state,j.side,j.requestedQuantity,j.reason);}
  // Rebuild all accounting and then-visible news from original data; never trust imported totals.
  if(JSON.stringify(state)!==JSON.stringify(x.state))fail('交易紀錄或資產校驗失敗，已保留原檔');
+ if(x.version===1){s.blind={revealed:true,everRevealed:true,revealedAtStep:0,legacy:true};s.indicatorSettings=defaultIndicatorSettings();s.indicatorHistory=[{step:0,settings:structuredClone(s.indicatorSettings),legacy:true}];}
+ else {const b=p.blind;if(!b||typeof b.revealed!=='boolean'||typeof b.everRevealed!=='boolean'||b.revealed!==b.everRevealed||!(b.revealedAtStep===null||Number.isInteger(b.revealedAtStep)&&b.revealedAtStep>=0&&b.revealedAtStep<=state.journal.length)||b.revealed&&b.revealedAtStep===null||!b.revealed&&b.revealedAtStep!==null)fail('揭露紀錄損壞');s.blind={...b};s.indicatorSettings=normalizeIndicatorSettings(p.indicatorSettings);const h=p.indicatorHistory;if(!Array.isArray(h)||!h.length||h.length>10000||h[0].step!==0)fail('指標紀錄損壞');let step=0;s.indicatorHistory=h.map(entry=>{if(!Number.isInteger(entry.step)||entry.step<step||entry.step>state.journal.length)fail('指標生效日損壞');step=entry.step;return {...entry,settings:normalizeIndicatorSettings(entry.settings)};});if(JSON.stringify(s.indicatorSettings)!==JSON.stringify(s.indicatorHistory.at(-1).settings))fail('指標設定與紀錄不一致');}
  return {s,state,draft:extras(x.draft),createdAt:x.createdAt};
 }
 export function createStore(storage){

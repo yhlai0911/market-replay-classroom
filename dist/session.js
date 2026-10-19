@@ -1,0 +1,7 @@
+import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js';
+export function initializeSession(s,version){s.datasetVersion=version;s.blind={revealed:false,everRevealed:false,revealedAtStep:null};s.indicatorSettings=defaultIndicatorSettings();s.indicatorHistory=[{step:0,settings:structuredClone(s.indicatorSettings)}];return s;}
+export function revealSession(s,state){if(s.blind?.revealed)return;s.blind={revealed:true,everRevealed:true,revealedAtStep:state.journal.length};}
+export function setIndicatorSettings(s,state,settings){const next=normalizeIndicatorSettings(settings);s.indicatorSettings=next;s.indicatorHistory.push({step:state.journal.length,settings:structuredClone(next)});return next;}
+export const REVEAL_KEY='market-replay-revealed-v2';
+// Local honesty record only. Clearing storage or editing files can bypass it.
+export function reconcileReveal(s,state,storage){if(!storage)return;const key=`${s.datasetVersion}|${s.id}`,raw=storage.getItem(REVEAL_KEY),registry=raw?JSON.parse(raw):{};if(!registry||Array.isArray(registry)||typeof registry!=='object')throw Error('揭露歷史格式損壞，請保留備份');if(registry[key]&&!s.blind?.everRevealed){s.blind={revealed:true,everRevealed:true,revealedAtStep:Math.min(registry[key].step,state.journal.length),priorRevealStep:registry[key].step,restoredPriorReveal:true};}if(s.blind?.everRevealed&&!registry[key]){registry[key]={step:s.blind.revealedAtStep??0};storage.setItem(REVEAL_KEY,JSON.stringify(registry));}}

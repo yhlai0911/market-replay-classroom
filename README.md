@@ -41,3 +41,17 @@
 本候選程式來自已通過57項單元／DOM stub／靜態測試的課堂版。完整57項測試已附test/，可執行npm test；npm run check另驗證發布檔案、署名與雜湊。測試不屬於網站artifact。新續玩與報告功能仍需真實瀏覽器及A4列印驗收。
 
 GitHub官方工作流程說明：https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
+
+## Direct PDF performance reports
+The report button directly downloads a client-generated PDF with embedded Traditional Chinese text and vector charts. Assets and licensed dependencies are vendored on the same origin; first font loading is about 7 MB. The report contains all completed decisions and full notes/reflections, flows long text across A4 pages, and uses only revealed observations. Historical automatically visible news is summarized by provider; replay-period events and explicit title/ID/URL mentions receive source detail. Full visible news-ID sets remain in the JSON backup. Unsupported font glyphs are represented by Unicode code point.
+
+`npm test` tests the actual PDF renderer, financial models and UI wiring. `node scripts/generate-pdf-samples.mjs <output-dir> [backup.json]` generates zero-decision and 120-day stress PDFs, plus an actual-backup PDF when a backup file is supplied. Generated reports and student backup files must not be committed or published.
+
+## Blind replay and configurable indicators
+New rounds hide the instrument and calendar dates, show relative trading days, and reserve 260 historical bars. The same seed, dataset SHA-256, round length and sampling settings reproduce the same interval. An explicitly supplied seed does not use random no-repeat rerolls. The default blind sampler uses all dates; previously saved explicit-date/year cases remain compatible and are marked disclosed.
+
+Students can enable and tune SMA, EMA, Bollinger bands, Wilder RSI, MACD, KD and split-comparable volume averages. Price overlays and separate oscillator panels use completed, visible bars only. Settings changes are retained in order, including multiple changes before one decision; the last setting at that decision step is effective. Missing warmup values display as unavailable. The 260-bar default covers the maximum supported first-valid lookback (239 bars); this is not a claim of full EMA convergence.
+
+Save format v2 adds warmup, disclosure state and indicator history. v1 saves replay and validate every original decision before migrating as already disclosed; no historical indicator settings are fabricated. Same-browser disclosure history prevents an ordinary earlier-backup import of that case from silently resetting disclosure. Clearing browser storage, editing JSON or developer tools can bypass this local honesty record. All raw market data remain downloaded, and JSON backups retain actual dates and identifiers. This is a display-level classroom blind exercise, not exam anti-cheat protection.
+
+In-progress reports retain relative-day labeling unless the student explicitly reveals. Completed reports show the real instrument and dates. Reports include seed, data version, round settings, disclosure history, effective indicator-setting references and the complete settings history. User-authored reasons, notes and reflections remain verbatim even when they contain guesses about identity. PDF generation captures the scenario, state and drafts together before asynchronous font loading.

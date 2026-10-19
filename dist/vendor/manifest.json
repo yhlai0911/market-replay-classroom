@@ -1,0 +1,13 @@
+{
+  "files": {
+    "NotoSansTC-OFL.txt": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "NotoSansTC-Regular.ttf": "ef9744251a252f55cdb25e1faeda36ad9dbec1ba7cdc9ca59a8c1c84dd6d1390",
+    "README.md": "632f1fe1b17ef1b282900a83588c0bb687fc49f4a72455b791929bcf917ac083",
+    "fontkit-LICENSE.txt": "da0abbca6ef469ba1e2157849d5270285e4c7d14a2e5ce74f8d0360c395813ae",
+    "fontkit-README.md": "7315fcc54511f5ffc906969c39333f93cd47f5217ab014fe45acff14bd5ec4c0",
+    "fontkit-package.json": "42b7a756ea4c11abfa664ffe9f9b67c1e30e564b5e2fb6db5b1775dac3eabb35",
+    "fontkit.js": "6ea6841a6d3ccd1a6e43e66652e29a50fec01d2d41b9246337fc830037e4fc8f",
+    "pdf-lib-LICENSE.md": "f2c9fc00fdb66eb99ac156ba52d734af66d8d309f65753ae809ad34ee2883bcb",
+    "pdf-lib.js": "72c052d97b4d5d9fa6cdbdcb7ad709f03d4ddb1122390cb3afeba4d88651d969"
+  }
+}

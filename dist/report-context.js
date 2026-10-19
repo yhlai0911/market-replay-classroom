@@ -1,3 +1,4 @@
+import {modelFor} from './costs.js?v=preview-v8';
 /** Shared presentation policy. It never edits a learner's authored text. */
 export function reportContext(s,state){
   const completed=Boolean(state.finished)||state.journal.length>=s.rounds.length;
@@ -28,7 +29,7 @@ export function settingsText(settings){
 }
 export function reportConfiguration(s,state){
   const c=reportContext(s,state);
-  return [`身份狀態：${c.status}`,`揭露紀錄：${c.reveal}`,`種子：${s.seed??'未記錄'}`,`資料版本：${s.datasetVersion??'未記錄（舊版資料）'}`,`回合長度：${s.rounds.length} 個決策日；已完成 ${state.journal.length} 日；暖機資料 ${s.warmup??s.history?.length??'未記錄'} 日`,`初始資金：${s.initialCash} ${s.currency??'TWD'}；雙向費率：${s.feeRate*100}%`,c.visible?`真實標的：${s.asset}\n真實開始日期：${s.startDate}\n起點年份設定：${s.startYear}\n指定起點：${s.requestedStartDate??"自動抽樣"}\n情境 ID：${s.id}`:'標的、真實日期、年份與來源連結在結束或主動揭露後顯示。', '種子需配合相同資料版本與回合設定才能復現。匿名僅是教學介面遮罩，不是加密或防作弊措施。','姓名、種子、理由與筆記等自由輸入原文不改寫，可能自行透露日期或標的。'].join('\n');
+  return [`身份狀態：${c.status}`,`揭露紀錄：${c.reveal}`,`種子：${s.seed??'未記錄'}`,`資料版本：${s.datasetVersion??'未記錄（舊版資料）'}`,`回合長度：${s.rounds.length} 個決策日；已完成 ${state.journal.length} 日；暖機資料 ${s.warmup??s.history?.length??'未記錄'} 日`,`初始資金：${s.initialCash} ${s.currency??'TWD'}`,reportCostDescription(s),c.visible?`真實標的：${s.asset}\n真實開始日期：${s.startDate}\n起點年份設定：${s.startYear}\n指定起點：${s.requestedStartDate??"自動抽樣"}\n情境 ID：${s.id}`:'標的、真實日期、年份與來源連結在結束或主動揭露後顯示。', '種子需配合相同資料版本與回合設定才能復現。匿名僅是教學介面遮罩，不是加密或防作弊措施。','姓名、種子、理由與筆記等自由輸入原文不改寫，可能自行透露日期或標的。'].join('\n');
 }
 
 /** Student-facing summary. Full identifiers and colors remain in settingsText's technical appendix. */
@@ -56,3 +57,14 @@ export function settingsDelta(previous,current){
  const changed=Object.fromEntries(Object.entries(current).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(previous[key])));
  return {changed,removed:Object.keys(previous).filter(key=>!Object.hasOwn(current,key))};
 }
+
+/** Model-specific cost disclosure; no historical instrument or dates. */
+export function reportHasTax(s){return modelFor(s).version!=='legacy-0.1%-no-tax';}
+export function reportCostLabel(s){const m=modelFor(s);return m.version==='tw-equity-v2'?`台灣證券簡化費稅模型｜${m.instrumentType==='stock'?'個股一般交易（非當沖）':'ETF'}`:m.version==='tw-etf-v1'?'台灣ETF簡化費稅模型':'舊版成本模型：未計證交稅';}
+export function reportCostDescription(s){
+ const m=modelFor(s),legacy=m.version==='legacy-0.1%-no-tax';
+ const exactPercent=value=>Number((value*100).toFixed(8)).toString()+'%';
+ const setup=m.version==='tw-equity-v2'?`標的類型：${m.instrumentType==='stock'?'個股一般交易（非當沖）':'ETF'}；選擇模式 ${m.mode}；依標的資料確認類型，類型不符不得開局。\n手續費基準 ${exactPercent(m.baseRate)} × 折扣比例 ${exactPercent(m.discount)} ＝ 有效雙向費率 ${exactPercent(m.feeRate)}。每筆最低手續費 ${m.minimumCommission} TWD。此基準、折扣與最低費是零股參考方案，可調整折扣與最低費，非全台統一收費。\n賣出證交稅率 ${exactPercent(m.sellTaxRate)}；買入不課證交稅；個股未套用當沖優惠。委託模型 ${m.orderType}：以日線開盤價按整數股數成交的零股簡化，不代表真實零股撮合或交割。\n`:'';
+ return `${reportCostLabel(s)}（${m.version}）。成本設定整局固定。\n`+setup+(legacy?`保留舊局原始計算與資產，不回溯補稅。雙向手續費率 ${exactPercent(m.feeRate)}；未計證交稅、最低手續費或整元取整，並非完整真實交易成本。`:`雙向手續費率 ${exactPercent(m.feeRate)}；每筆最低手續費 ${m.minimumCommission} TWD；賣出證交稅率 ${exactPercent(m.sellTaxRate)}，買入不課證交稅。手續費＝成交額×費率無條件捨去至整元後套最低費；證交稅＝賣出成交額×稅率無條件捨去至整元；取整規則 ${m.rounding}。最低費為 0 時是教學假設；費率及最低費為自訂模擬值，非全市場統一標準。`)+`\n成交額＝數量×開盤價的理論成交額，未模擬真實零股獨立撮合、逐筆交割取整、滑價或流動性限制；不含股利所得稅。整數單位，不可放空或槓桿。基準只在首日買入，沒有虛擬期末賣出或賣出稅。`;
+}
+export function reportCostSources(visible){return '費稅參考：證券交易稅條例第 2 條（個股一般交易賣方 0.3%、ETF 賣方 0.1%）；臺灣證券交易所 ETF 交易規則（ETF 賣方證交稅）；營業細則第 94 條（券商自訂手續費與最低費）。'+(visible?'\nhttps://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=G0340078\nhttps://www.twse.com.tw/zh/products/securities/etf/overview/rules.html\nhttps://twse-regulation.twse.com.tw/TW/law/DOC01.aspx?FLCODE=FL007304&FLNO=94':'來源連結於揭露後顯示。');}

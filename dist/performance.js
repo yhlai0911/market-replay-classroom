@@ -1,4 +1,4 @@
-import {fresh, decide, wealth, benchmark, mark} from './engine.js?v=preview-v6';
+import {fresh, decide, wealth, benchmark, mark} from './engine.js?v=preview-v8';
 
 const percentage = (part, whole) => whole > 0 ? part / whole * 100 : 0;
 const returnPercent = (value, initial) => percentage(value - initial, initial);
@@ -77,7 +77,7 @@ export function performanceModel(s, state) {
     completed:counts.decisions, total:s.rounds.length, finished:replay.finished,
     initialAssets, currentAssets, benchmarkAssets, portfolioReturn, benchmarkReturn,
     relativeReturn:portfolioReturn - benchmarkReturn, maxDrawdown, benchmarkMaxDrawdown,
-    totalFees:replay.fees, cash:replay.cash, shares:replay.shares, holdingValue,
+    totalFees:replay.fees, totalTaxes:replay.taxes??0, totalCosts:replay.totalCosts??replay.fees, cash:replay.cash, shares:replay.shares, holdingValue,
     receivables:replay.receivable ?? 0, dividends:replay.dividends ?? 0,
     currentExposure:percentage(holdingValue, currentAssets),
     meanExposure:counts.decisions ? points.slice(1).reduce((sum, point) => sum + point.exposure, 0) / counts.decisions : 0,

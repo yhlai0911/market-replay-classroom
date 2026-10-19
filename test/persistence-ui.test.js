@@ -1,3 +1,4 @@
+import {LEGACY_COST_MODEL,ETF_V1_COST_MODEL,transactionCosts,maxAffordableQuantity} from '../dist/costs.js';
 import {createPracticeStore,PRACTICE_STORE_KEY} from '../dist/practice-store.js';
 import {initializeSession,setIndicatorSettings} from '../dist/session.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
@@ -67,7 +68,7 @@ test('on-chart selected indicator editing preserves other choices, history and r
 });
 test('legacy UI distinguishes previously known identity from manual reveal before and after completion (DOM stub)',async()=>{
  for(const complete of [false,true]){
-  let state=fresh(s);if(complete)for(let i=0;i<s.length;i++)state=decide(s,state,'hold',0,'舊版決策');
+  const s=createScenario(data,{seed:'persist-ui',startDate:'2019-11-08',length:20,startYear:'2019',costModel:LEGACY_COST_MODEL});let state=fresh(s);if(complete)for(let i=0;i<s.length;i++)state=decide(s,state,'hold',0,'舊版決策');
   const old=makeSave(s,state,version);old.version=1;for(const key of ['warmup','blind','indicatorSettings','indicatorHistory'])delete old.scenario[key];
   let mounted=await mount(JSON.stringify(old));const expected=(complete?'回合完成 · ':'')+'舊版資料，身分已知';
   assert.equal(mounted.els.get('blind-status').textContent,expected);assert(!mounted.els.get('blind-status').textContent.includes('主動揭露'));
@@ -104,7 +105,7 @@ test('new practice defaults to hold without trading; explicitly saved buy drafts
 
 test('prior version two backup renders positive before-practice labels after restore without altering progress',async()=>{
  const scenario=initializeSession(createScenario(data,{seed:'old-label-save',length:20,warmup:260}));let state=decide(scenario,fresh(scenario),'buy',10,'原始買入');state=decide(scenario,state,'hold',0,'觀察');setIndicatorSettings(scenario,state,{...scenario.indicatorSettings,smaEnabled:true,smaPeriod:10});const raw=JSON.stringify(makeSave(scenario,state,version,{...emptyDraft(),side:'buy',quantity:'10'}));
- const {els}=await mount(raw);assert.equal(els.get('shares').textContent,'10');assert.match(els.get('round').textContent,/3 \/ 20/);for(const id of ['ohlc','chart','news'])assert.doesNotMatch(els.get(id).innerHTML,/暖機第|練習前 -/);assert.match(els.get('chart').innerHTML,/練習前 \d+ 日/);assert.match(els.get('build-version').textContent,/v6.*已載入/);
+ const {els}=await mount(raw);assert.equal(els.get('shares').textContent,'10');assert.match(els.get('round').textContent,/3 \/ 20/);for(const id of ['ohlc','chart','news'])assert.doesNotMatch(els.get(id).innerHTML,/暖機第|練習前 -/);assert.match(els.get('chart').innerHTML,/練習前 \d+ 日/);assert.match(els.get('build-version').textContent,/v8.*已載入/);
 });
 
 test('every confirmed decision starts a clean hold draft while notes and journal reasons survive refresh',async()=>{
@@ -158,10 +159,32 @@ test('visible new-practice actions create independent games and cancellation pre
  const m=await mount(),before=m.values.get(PRACTICE_STORE_KEY);globalThis.confirm=()=>false;m.els.get('records-new').handlers.click();assert.equal(m.values.get(PRACTICE_STORE_KEY),before);globalThis.confirm=()=>true;m.els.get('records-new').handlers.click();assert.equal(archive(m).records.length,2);m.els.get('new-practice').handlers.click();assert.equal(archive(m).records.length,3);assert.doesNotMatch(html,/會取代目前進度|套用會清除目前決策/);
 });
 
-test('small transaction fees are visible to cents in estimate, result, journal and totals',async()=>{
- const raw=JSON.stringify(makeSave(s,fresh(s),version,{...emptyDraft(),side:'buy',quantity:'1',reason:'買一單位'}));const m=await mount(raw);assert.match(m.els.get('order-estimate').textContent,/費用 \$0\.\d{2}/);m.submit();const saved=restoreSave(activeRaw(m.values),data,version),fee=saved.state.journal[0].fee;assert(fee>0&&fee<1);const formatted=new Intl.NumberFormat('zh-TW',{style:'currency',currency:'TWD',minimumFractionDigits:2,maximumFractionDigits:2}).format(fee);for(const id of ['last-result','return'])assert(m.els.get(id).textContent.includes(formatted));assert(m.els.get('journal').innerHTML.includes(formatted));
+test('legacy small transaction fees remain visible to cents without retrospective rounding',async()=>{
+ const s=createScenario(data,{seed:'persist-ui',startDate:'2019-11-08',length:20,startYear:'2019',costModel:LEGACY_COST_MODEL});const raw=JSON.stringify(makeSave(s,fresh(s),version,{...emptyDraft(),side:'buy',quantity:'1',reason:'買一單位'}));const m=await mount(raw);assert.match(m.els.get('order-estimate').textContent,/手續費 \$0\.\d{2}/);m.submit();const saved=restoreSave(activeRaw(m.values),data,version),fee=saved.state.journal[0].fee;assert(fee>0&&fee<1);const formatted=new Intl.NumberFormat('zh-TW',{style:'currency',currency:'TWD',minimumFractionDigits:2,maximumFractionDigits:2}).format(fee);for(const id of ['last-result','return'])assert(m.els.get(id).textContent.includes(formatted));assert(m.els.get('journal').innerHTML.includes(formatted));
 });
 
 test('new practice second-write quota failure is visible on records page and keeps active game',async()=>{
  const m=await mount();m.els.get('open-records').handlers.click();const before=archive(m),setItem=globalThis.localStorage.setItem;let writes=0;globalThis.localStorage.setItem=(k,v)=>{if(k===PRACTICE_STORE_KEY&&++writes===2)throw Error('quota');setItem(k,v);};m.els.get('records-new').handlers.click();assert.equal(writes,2);assert.equal(archive(m).records.length,before.records.length);assert.equal(archive(m).activeId,before.activeId);assert.equal(m.els.get('view-records').hidden,false);assert.match(m.els.get('records-error').textContent,/保存失敗/);
+});
+
+test('cost configuration applies only to a new practice and survives restore; estimates share engine rules',async()=>{
+ const m=await mount();const original=archive(m).activeId,old=archive(m).records[0].save.scenario.costModel;
+ m.els.get('new-commission-discount').value='60';m.els.get('new-minimum-commission').value='20';assert.deepEqual(archive(m).records[0].save.scenario.costModel,old);m.els.get('records-new').handlers.click();
+ const current=restoreSave(activeRaw(m.values),data,version);assert.equal(current.s.costModel.feeRate,.000855);assert.equal(current.s.costModel.discount,.6);assert.equal(current.s.costModel.minimumCommission,20);assert.deepEqual(archive(m).records.find(r=>r.id===original).save.scenario.costModel,old);
+ const loaded=await mount(activeRaw(m.values));assert.match(loaded.els.get('cost-notice').textContent,/最低 \$20.00/);loaded.radios.forEach(r=>r.checked=r.value==='buy');loaded.els.get('quantity').value='1';loaded.els.get('quantity').handlers.input();assert.match(loaded.els.get('order-estimate').textContent,/手續費 \$20.00/);assert.match(loaded.els.get('order-estimate').textContent,/證交稅 \$0.00/);
+ assert.equal(loaded.els.get('max-buy').textContent,`昨收估算可買上限 ${maxAffordableQuantity(current.s,current.state.cash,current.s.rounds[0].price).toLocaleString('zh-TW')} 單位`);
+});
+test('legacy warning and v7 low notional retain original model results',async()=>{
+ const legacy={...s,costModel:LEGACY_COST_MODEL};const m=await mount(JSON.stringify(makeSave(legacy,fresh(legacy),version)));assert.match(m.els.get('cost-notice').textContent,/舊教學成本模型.*未計證交稅/);
+ const oldV7={...s,costModel:ETF_V1_COST_MODEL};const n=await mount(JSON.stringify(makeSave(oldV7,fresh(oldV7),version,{...emptyDraft(),side:'buy',quantity:'1',reason:'小額測試'})));n.submit();const saved=restoreSave(activeRaw(n.values),data,version);assert.equal(saved.state.journal[0].fee,0);assert.equal(saved.state.journal[0].tax,0);assert.match(n.els.get('cost-notice').textContent,/v7.*未重算/);assert.match(n.els.get('last-result').textContent,/手續費 \$0.00.*證交稅 \$0.00/);
+});
+
+test('cost type mismatch blocks new practice without changing current or leaking blind identity',async()=>{
+ const m=await mount(),before=m.values.get(PRACTICE_STORE_KEY);m.els.get('new-cost-type').value='stock';m.els.get('new-cost-type').handlers.input();assert.match(m.els.get('new-cost-warning').textContent,/不符|不一致|不能|不適用/);assert.doesNotMatch(m.els.get('new-cost-warning').textContent,/0050|元大/);m.els.get('records-new').handlers.click();assert.equal(m.values.get(PRACTICE_STORE_KEY),before);assert.match(m.els.get('setup-error').textContent,/不符|不一致|不能|不適用/);
+ m.els.get('new-cost-type').value='etf';m.els.get('records-new').handlers.click();const model=archive(m).records.find(r=>r.id===archive(m).activeId).save.scenario.costModel;assert.equal(model.version,'tw-equity-v2');assert.equal(model.instrumentType,'etf');assert.equal(model.baseRate,.001425);assert.equal(model.discount,1);assert.equal(model.minimumCommission,1);assert.equal(model.sellTaxRate,.001);
+});
+
+test('confirmation formats rates without floating tails and legacy warning appears on report screen',async()=>{
+ const m=await mount();let message='';globalThis.confirm=text=>{message=text;return false};m.els.get('records-new').handlers.click();assert.match(message,/0.1425%/);assert.doesNotMatch(message,/0\.142500000|00000000002/);
+ const legacy={...s,costModel:LEGACY_COST_MODEL};const old=await mount(JSON.stringify(makeSave(legacy,fresh(legacy),version)));old.els.get('tab-report').handlers.click();assert.match(old.els.get('report-cost-notice').textContent,/未計證交稅.*未重算/);assert.match(old.els.get('report-cost-notice').className,/legacy-cost-banner/);
 });

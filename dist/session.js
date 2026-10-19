@@ -1,4 +1,4 @@
-import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js?v=preview-v6';
+import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js?v=preview-v8';
 export function initializeSession(s,version){s.datasetVersion=version;s.blind={revealed:false,everRevealed:false,revealedAtStep:null};s.indicatorSettings=defaultIndicatorSettings();s.indicatorHistory=[{step:0,settings:structuredClone(s.indicatorSettings)}];return s;}
 export function revealSession(s,state){if(s.blind?.revealed)return;s.blind={revealed:true,everRevealed:true,revealedAtStep:state.journal.length};}
 export function setIndicatorSettings(s,state,settings){const next=normalizeIndicatorSettings(settings);s.indicatorSettings=next;s.indicatorHistory.push({step:state.journal.length,settings:structuredClone(next)});return next;}

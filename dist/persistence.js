@@ -1,12 +1,12 @@
-import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js';
-import {createScenario} from './scenario.js';
-import {fresh,decide} from './engine.js';
+import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js?v=preview-v6';
+import {createScenario} from './scenario.js?v=preview-v6';
+import {fresh,decide} from './engine.js?v=preview-v6';
 export const SAVE_KEY='market-replay-save-v1', BACKUP_KEY='market-replay-previous-v1';
 export async function datasetVersion(data){const bytes=new TextEncoder().encode(JSON.stringify(data));const digest=await crypto.subtle.digest('SHA-256',bytes);return 'sha256:'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
 const fail=message=>{throw Error(message)};
 function str(v,max,label){if(typeof v!=='string'||v.length>max)fail(`${label}格式不正確`);return v;}
 function extras(x={}){return {side:['buy','sell','hold'].includes(x.side)?x.side:fail('委託模式格式不正確'),quantity:str(x.quantity,30,'數量草稿'),reason:str(x.reason,1000,'理由'),studentName:str(x.studentName,100,'姓名'),studentId:str(x.studentId,100,'學號'),notes:str(x.notes,10000,'操作筆記'),reflection:str(x.reflection,10000,'反思')};}
-export const emptyDraft=()=>({side:'buy',quantity:'100',reason:'',studentName:'',studentId:'',notes:'',reflection:''});
+export const emptyDraft=()=>({side:'hold',quantity:'100',reason:'',studentName:'',studentId:'',notes:'',reflection:''});
 export function makeSave(s,state,version,draft=emptyDraft(),createdAt=new Date().toISOString()){
  return {format:'market-replay-save',version:2,datasetVersion:version,createdAt,updatedAt:new Date().toISOString(),scenario:{seed:s.seed,startDate:s.startDate,requestedStartDate:s.requestedStartDate??null,startYear:s.startYear,length:s.length,warmup:s.warmup,blind:s.blind??{revealed:true,everRevealed:true,revealedAtStep:0},indicatorSettings:s.indicatorSettings??defaultIndicatorSettings(),indicatorHistory:s.indicatorHistory??[{step:0,settings:defaultIndicatorSettings()}]},state,draft:extras(draft)};
 }

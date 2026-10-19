@@ -14,15 +14,15 @@ async function mount(){
     addEventListener(ev,fn){this.handlers[ev]=fn},
     reset(){side='buy';els.get('quantity').value='100';els.get('reason').value=''}
   }]));
-  const radios=['buy','sell','hold'].map(value=>({value,handlers:{},addEventListener(ev,fn){this.handlers[ev]=fn}}));
+  const radios=['buy','sell','hold'].map(value=>({value,get checked(){return side===value},set checked(v){if(v)side=value},handlers:{},addEventListener(ev,fn){this.handlers[ev]=fn}}));
   globalThis.document={getElementById:id=>els.get(id),querySelectorAll:()=>radios};
-  globalThis.fetch=async()=>({ok:true,json:async()=>data});
+  const storageValues=new Map();globalThis.localStorage={getItem:k=>storageValues.get(k)??null,setItem:(k,v)=>storageValues.set(k,v)};globalThis.fetch=async()=>({ok:true,json:async()=>data});
   globalThis.confirm=()=>true;
   globalThis.FormData=class{get(){return side}};
   await import(`../dist/app.js?hint-test=${mount.count++}`);
   const select=value=>{side=value;radios.find(r=>r.value===value).handlers.change()};
   const submit=quantity=>{els.get('quantity').value=String(quantity);els.get('reason').value='測試委託提示';els.get('decision-form').handlers.submit({preventDefault(){},target:els.get('decision-form')})};
-  els.get('apply-setup').handlers.click();
+  els.get('apply-setup').handlers.click();select('buy');
   return {els,select,submit,hint:()=>els.get('max-buy').textContent};
 }
 mount.count=0;
@@ -35,9 +35,9 @@ test('order hint follows buy/sell/hold changes, trades and reset (DOM stub)',asy
   select('buy');assert.equal(els.get('quantity').disabled,false);
   const initial=hint();submit(100);assert.equal(els.get('error').textContent,'');assert.notEqual(hint(),initial);
   select('sell');assert.equal(hint(),'可賣持有量 100 單位');
-  submit(50);assert.equal(els.get('error').textContent,'');assert.equal(hint(),'可賣持有量 50 單位');
+  submit(50);assert.equal(els.get('error').textContent,'');assert.equal(hint(),'觀望不適用交易單位');select('sell');assert.equal(hint(),'可賣持有量 50 單位');
   select('hold');submit(999);assert.equal(hint(),'觀望不適用交易單位');assert.equal(els.get('quantity').disabled,true);
-  els.get('reset').handlers.click();assert.match(hint(),/^昨收估算可買上限/);assert.equal(els.get('quantity').disabled,false);
+  els.get('random-start').handlers.click();assert.equal(hint(),'觀望不適用交易單位');assert.equal(els.get('quantity').disabled,true);
   select('sell');assert.equal(hint(),'可賣持有量 0 單位');
 });
 
@@ -58,4 +58,10 @@ test('long journal has a bounded keyboard-accessible scroll region and direct co
   assert.match(css,/@media\(max-width:560px\)\{\.journal #journal\{max-height:360px\}\}/);
   assert.match(html,/<div id="complete" hidden>.*?<a href="#review">查看回合結算/);
   assert.match(html,/id="quantity" aria-describedby="max-buy"/);
+});
+
+test('zero and insufficient holdings never preview negative shares or proceeds and disable submit',async()=>{
+ const {els,select,submit}=await mount();select('sell');assert.equal(els.get('submit').disabled,true);assert.equal(els.get('quantity').disabled,true);assert.match(els.get('order-estimate').textContent,/目前沒有持倉可賣/);assert.doesNotMatch(els.get('order-estimate').textContent,/入帳|持有 -/);
+ select('buy');assert.equal(els.get('submit').disabled,false);submit(10);select('sell');els.get('quantity').value='11';els.get('quantity').handlers.input();assert.equal(els.get('submit').disabled,true);assert.match(els.get('order-estimate').textContent,/最多可賣 10/);assert.doesNotMatch(els.get('order-estimate').textContent,/入帳|持有 -/);
+ els.get('quantity').value='10';els.get('quantity').handlers.input();assert.equal(els.get('submit').disabled,false);assert.doesNotMatch(els.get('order-estimate').textContent,/跳空現金不足/);submit(10);select('sell');assert.equal(els.get('submit').disabled,true);assert.match(els.get('order-estimate').textContent,/沒有持倉/);select('hold');assert.equal(els.get('submit').disabled,false);
 });

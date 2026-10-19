@@ -1,13 +1,13 @@
 // Every calculation is causal: callers pass only the already-revealed bars.
 // Values before the first complete lookback/seed are null, never partial averages.
 const DEFAULTS = Object.freeze({
-  smaEnabled: true, smaPeriod: 20,
+  smaEnabled: false, smaPeriod: 20,
   emaEnabled: false, emaPeriod: 20,
   bbEnabled: false, bbPeriod: 20, bbDeviations: 2,
-  rsiEnabled: true, rsiPeriod: 14,
+  rsiEnabled: false, rsiPeriod: 14,
   macdEnabled: false, macdFast: 12, macdSlow: 26, macdSignal: 9,
   kdEnabled: false, kdLookback: 9, kdKSmoothing: 3, kdDSmoothing: 3,
-  volumeMAEnabled: true, volumeMAPeriod: 20
+  volumeMAEnabled: false, volumeMAPeriod: 20
 });
 const PERIOD_NAMES = {
   smaPeriod: 'SMA 週期', emaPeriod: 'EMA 週期', bbPeriod: '布林通道週期',
@@ -56,16 +56,34 @@ export function normalizeIndicatorSettings(input = {}) {
   if (settings.macdFast >= settings.macdSlow) {
     throw new RangeError('MACD 快線週期必須小於慢線週期');
   }
+  if (Object.hasOwn(input, 'movingAverages')) {
+    if (!Array.isArray(input.movingAverages) || input.movingAverages.length > 8) throw new RangeError('均線最多可加入 8 條');
+    const ids = new Set();
+    settings.movingAverages = input.movingAverages.map(line => {
+      if (!line || typeof line !== 'object' || !/^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/.test(line.id) || ids.has(line.id)) throw new TypeError('均線 ID 必須有效且不可重複');
+      if (!['sma','ema'].includes(line.type)) throw new TypeError('均線類型必須為 SMA 或 EMA');
+      const period = numeric(line.period);
+      if (!Number.isInteger(period) || period < 2 || period > 120) throw new RangeError('均線週期必須為 2–120 的整數');
+      if (typeof line.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(line.color)) throw new TypeError('均線顏色必須是六位十六進位色碼');
+      ids.add(line.id);return {id:line.id,type:line.type,period,color:line.color.toLowerCase()};
+    });
+  }
   return settings;
 }
+
+// Explicit arrays are authoritative; absent arrays retain older single-line sessions.
+export function movingAverageInstances(input = {}) {
+  if (Array.isArray(input.movingAverages)) return input.movingAverages.map(line=>({...line}));
+  return ['sma','ema'].filter(type=>input[type+'Enabled']).map(type=>({id:'legacy-'+type,type,period:input[type+'Period']??20,color:type==='sma'?'#f5c773':'#6faeff'}));
+}
+export const movingAverageSeriesKey = line => 'ma_'+(typeof line==='string'?line:line.id);
 
 // Bars needed for the first defined value of every enabled output (not an EMA
 // convergence guarantee). A 120-period RSI needs 121 closes; MACD can need 239.
 export function requiredWarmup(input = {}) {
   const s = normalizeIndicatorSettings(input);
   return Math.max(0,
-    s.smaEnabled ? s.smaPeriod : 0,
-    s.emaEnabled ? s.emaPeriod : 0,
+    ...movingAverageInstances(s).map(line=>line.period),
     s.bbEnabled ? s.bbPeriod : 0,
     s.rsiEnabled ? s.rsiPeriod + 1 : 0,
     s.macdEnabled ? s.macdSlow + s.macdSignal - 1 : 0,
@@ -147,8 +165,9 @@ export function calculateIndicators(bars, input = {}) {
   const series = Object.fromEntries(SERIES_KEYS.map(key => [key, Array(bars.length).fill(null)]));
   const closes = bars.map(bar => bar?.close);
 
-  if (settings.smaEnabled) series.sma = movingAverage(closes, settings.smaPeriod);
-  if (settings.emaEnabled) series.ema = exponentialAverage(closes, settings.emaPeriod);
+  for (const line of movingAverageInstances(settings)) series[movingAverageSeriesKey(line)] = (line.type==='sma'?movingAverage:exponentialAverage)(closes,line.period);
+  if (!Object.hasOwn(settings,'movingAverages') && settings.smaEnabled) series.sma = movingAverage(closes, settings.smaPeriod);
+  if (!Object.hasOwn(settings,'movingAverages') && settings.emaEnabled) series.ema = exponentialAverage(closes, settings.emaPeriod);
   if (settings.bbEnabled) {
     const period = settings.bbPeriod;
     series.bbMiddle = movingAverage(closes, period);
@@ -193,6 +212,6 @@ export function calculateIndicators(bars, input = {}) {
   if (settings.volumeMAEnabled) {
     series.volumeMA = movingAverage(bars.map(bar => bar?.comparableVolume ?? bar?.volume), settings.volumeMAPeriod);
   }
-  const latest = Object.fromEntries(SERIES_KEYS.map(key => [key, series[key].at(-1) ?? null]));
+  const latest = Object.fromEntries(Object.keys(series).map(key => [key, series[key].at(-1) ?? null]));
   return { series, latest };
 }

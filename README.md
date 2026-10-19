@@ -55,3 +55,31 @@ Students can enable and tune SMA, EMA, Bollinger bands, Wilder RSI, MACD, KD and
 Save format v2 adds warmup, disclosure state and indicator history. v1 saves replay and validate every original decision before migrating as already disclosed; no historical indicator settings are fabricated. Same-browser disclosure history prevents an ordinary earlier-backup import of that case from silently resetting disclosure. Clearing browser storage, editing JSON or developer tools can bypass this local honesty record. All raw market data remain downloaded, and JSON backups retain actual dates and identifiers. This is a display-level classroom blind exercise, not exam anti-cheat protection.
 
 In-progress reports retain relative-day labeling unless the student explicitly reveals. Completed reports show the real instrument and dates. Reports include seed, data version, round settings, disclosure history, effective indicator-setting references and the complete settings history. User-authored reasons, notes and reflections remain verbatim even when they contain guesses about identity. PDF generation captures the scenario, state and drafts together before asynchronous font loading.
+
+### Focused workspace and interactive chart
+
+The UI now separates preparation, trading and review/report into distinct views. A new visitor starts with a short introduction; restored sessions open the trading view, or the completed report. Switching views preserves the current replay and unsent draft. The compact sticky navigation and portfolio strip keep assets, cash, holdings and the relative decision-day counter visible. Backups and identity reveal live in preparation; PDF reports, reflection and the full journal live in review. Indicator selection and parameters remain directly on the chart: new replays begin with only candles and volume, “＋ 指標” opens an available-indicator menu, and selected colored chips open a local parameter editor with apply/remove controls. Previously saved indicator choices are restored, not replaced by the new defaults.
+
+The locally implemented SVG chart (`dist/interactive-chart.js`) receives only `visible(s,state).bars` and causal indicator series. It has shared price/volume/study time windows, visible axes and grids, drag/pointer panning, zoom buttons, keyboard navigation, Ctrl/Command-wheel zoom, and blind-safe OHLCV tooltips. Only enabled overlays, study panes, legend entries and value cards appear. Price overlays and volume averages are color keyed. Volume bars and the volume average use split-comparable units; tooltips separately disclose original volume. No chart library, CDN or new external runtime is required. Raw dates are never formatted inside the component; the app provides the appropriate relative-day or revealed-date label function.
+
+Each decision displays an estimate using the last known close, estimated fees and resulting holdings, followed by a confirmation before advancing. The estimate is not an execution-price guarantee. Gap-related cancellation still advances the day and is explicitly reported. More than five older news items are collapsed behind an expansion control.
+
+Validation includes the original simulation, blindness, indicator, persistence and PDF tests plus workspace-navigation and chart range/event tests. DOM-stub tests are not a substitute for actual browser visual/mobile QA; that stage must be checked against an accessible preview or deployed URL.
+
+### Multiple moving-average instances
+
+SMA and EMA can each have multiple independently editable lines, up to eight moving-average lines total. Each line has a stable id, type, period (2–120) and six-digit color. Add another line from “＋ 指標”, edit its own chip, or append an SMA 5/20 or 5/20/60 comparison group. These comparison presets are educational views, not trading recommendations.
+
+New explicit `movingAverages` arrays are authoritative. Saves and histories without that property retain the older single-SMA/EMA settings; `movingAverageInstances` exposes these as stable `legacy-sma`/`legacy-ema` instances for display and conversion. Editing or adding a line preserves other instances. JSON restores validate every id, period and color and reject duplicates/over-limit arrays. Per-decision report context and PDF history include each id/type/period/color; compatibility scalar fields do not imply extra plotted lines.
+
+Chart extents, legends, crosshair values and warmup calculations include every selected instance, using only already visible bars. Tests cover SMA crossings, causal prefix equality, independent EMA seeds, per-line edits/removals, persisted round trips and report history fidelity.
+
+### Beginner clarity
+
+Fresh practice defaults to hold, with the quantity disabled until a buy/sell choice is made. A saved draft's explicit side and quantity are preserved on restoration. A reason and final confirmation remain required before time advances. Historical warmup labels read “練習前 N 日”, using positive counts; raw dates and dataset content are unchanged. A compact, collapsed quick-start explanation is available in the trading view, and news/indicator terminology has optional plain-language explanations without predictive or trading recommendations. Student-facing moving-average labels use line numbers; technical identities remain in persisted data and report appendices.
+
+### Preview regression safeguards
+
+Invalid zero-holding or over-sized sell choices retain the user's selected direction but show a clear unavailable message, never negative projected holdings or sale proceeds, and disable submission. The simulation still independently rejects the action, so scripted/form bypasses cannot advance a day or create a short position. Valid sell/hold estimates omit buy-only gap-cancellation language.
+
+The report download action is above the expandable student form in a compact sticky report heading. Application modules and CSS carry a shared asset-version URL (`node scripts/version-assets.mjs preview-v3`); the header also confirms the running preview build. This prevents accidental mixed cached module versions during local preview updates. It does not establish that caching caused any previously observed mismatch. JSON import/restore never rewrites past labels: relative labels are generated from the active display code and are covered by a legacy version-two save regression.

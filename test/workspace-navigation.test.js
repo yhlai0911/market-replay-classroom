@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
+const data=JSON.parse(fs.readFileSync(new URL('../dist/dataset.json',import.meta.url),'utf8'));
+test('workspace stage navigation preserves replay and draft; setup shortcut does not reset (DOM stub)',async()=>{
+ const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'No duplicate DOM ids');
+ const els=new Map(ids.map(id=>[id,{id,value:id==='length'?'20':id==='start-year'?'all':id==='quantity'?'100':'',innerHTML:'',textContent:'',options:[{value:''}],nextElementSibling:{},style:{},hidden:false,disabled:false,handlers:{},attributes:{},focus(){this.focused=true},setAttribute(k,v){this.attributes[k]=v},addEventListener(k,f){this.handlers[k]=f},reset(){}}]));
+ globalThis.document={body:{dataset:{}},getElementById:id=>els.get(id),querySelectorAll:()=>[]};
+ const storageValues=new Map();globalThis.localStorage={getItem:k=>storageValues.get(k)??null,setItem:(k,v)=>storageValues.set(k,v)};globalThis.fetch=async()=>({ok:true,json:async()=>data});globalThis.FormData=class{get(){return 'hold'}};globalThis.confirm=()=>true;
+ await import('../dist/app.js?workspace-nav-test');
+ const click=id=>els.get(id).handlers.click();
+ assert.equal(els.get('view-setup').hidden,false);assert.equal(els.get('view-trade').hidden,true);assert.equal(document.body.dataset.view,'setup');
+ const original=els.get('round').textContent;els.get('reason').value='保留這段未送出的理由';
+ click('enter-trade');assert.equal(els.get('view-trade').hidden,false);assert.equal(els.get('tab-trade').attributes['aria-current'],'step');
+ click('tab-report');assert.equal(els.get('view-report').hidden,false);assert.equal(els.get('view-trade').hidden,true);
+ click('return-trade');click('reset');assert.equal(els.get('view-setup').hidden,false);assert.equal(els.get('round').textContent,original);assert.equal(els.get('reason').value,'保留這段未送出的理由');
+ click('tab-trade');globalThis.confirm=()=>false;els.get('decision-form').handlers.submit({preventDefault(){},target:{}});assert.equal(els.get('round').textContent,original);assert.equal(els.get('reason').value,'保留這段未送出的理由');
+ globalThis.confirm=()=>true;els.get('decision-form').handlers.submit({preventDefault(){},target:{}});assert.notEqual(els.get('round').textContent,original);assert.equal(els.get('reason').value,'');assert.equal(els.get('last-result').hidden,false);
+ assert.match(els.get('enter-trade').textContent,/繼續第 2/);assert.match(els.get('asset').textContent,/2 \/ 20/);
+});

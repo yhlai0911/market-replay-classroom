@@ -40,7 +40,7 @@ test('settings normalization creates independent defaults and safely validates e
 
 test('required warmup includes RSI changes and MACD signal seed, and only enabled indicators', () => {
   assert.equal(requiredWarmup(disabled()), 0);
-  assert.equal(requiredWarmup(), 20);
+  assert.equal(requiredWarmup(), 0);
   for (const [fields, expected] of [
     [{ smaEnabled: true, smaPeriod: 120 }, 120],
     [{ emaEnabled: true, emaPeriod: 120 }, 120],

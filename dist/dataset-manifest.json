@@ -5,7 +5,7 @@
     {
       "id": "0050-v8-original",
       "instrument": "0050",
-      "label": "原始資料版（既有練習相容）",
+      "label": "原有練習資料",
       "path": "./dataset.json",
       "hash": "sha256:8b040e01132231c2624a8e549928adb207f15db587a88cc074167d39a62e72c1",
       "coverage": {
@@ -34,7 +34,7 @@
     {
       "id": "0050-expanded-20261019",
       "instrument": "0050",
-      "label": "擴充資料版",
+      "label": "較長期間的歷史資料",
       "path": "./dataset-0050-20040211-20261019.json",
       "hash": "sha256:78923f3d41d65a0eecb9b8d1d00940dbd013ab3c9fb9476872764d8da8d3e55a",
       "coverage": {

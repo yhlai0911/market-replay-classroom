@@ -1,9 +1,9 @@
 // Dataset identity is the canonical JSON SHA-256 already embedded in all historical saves.
 // Keep snapshots immutable: changing a default never changes a saved practice's resolver.
-import {datasetVersion,restoreSave} from './persistence.js?v=preview-v9';
+import {datasetVersion,restoreSave} from './persistence.js?v=preview-v10';
 const validDay=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString().slice(0,10)===x;
 const HASH=/^sha256:[a-f0-9]{64}$/;
-export function unavailableDataset(version){const e=new Error('這份練習使用的歷史資料版本尚未提供；原始備份保留，可匯出，其他練習仍可使用');e.code='DATASET_UNAVAILABLE';e.datasetVersion=version;return e;}
+export function unavailableDataset(version){const e=new Error('找不到這份練習所需的行情資料；仍可下載備份，其他練習不受影響');e.code='DATASET_UNAVAILABLE';e.datasetVersion=version;return e;}
 export function validateDatasetManifest(manifest){
  if(!manifest||manifest.version!==1||!Array.isArray(manifest.datasets)||!manifest.datasets.length)throw Error('歷史資料目錄格式不正確');
  const ids=new Set(),hashes=new Set();

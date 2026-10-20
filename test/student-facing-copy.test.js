@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
+const read=f=>fs.readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
+const visible=html=>html.replace(/<style[\s\S]*?<\/style>/g,'').replace(/<[^>]+>/g,' ');
+test('student pages explain limits without build narration or internal field names',()=>{for(const file of ['index.html','source-notice.html']){const text=visible(read(file));assert.doesNotMatch(text,/候選|待價格檢查|本原型|未來個股資料|不可變快照|sourceUrl|corporateActions|vintageCaveats|dataset\.json|驗收|全測|\bv[789]\b/);}const source=visible(read('source-notice.html'));assert.match(source,/32 次配息/);assert.match(source,/14 次配息/);assert.match(source,/7 筆配息公告時間未確認/);assert.match(source,/2026 年沒有完整新聞覆蓋/);assert.match(source,/並非.*官方產品/);});
+test('dataset choices describe classroom use and anonymous labels contain no instrument or dates',()=>{const manifest=JSON.parse(read('dataset-manifest.json'));assert.deepEqual(manifest.datasets.map(d=>d.label),['原有練習資料','較長期間的歷史資料']);for(const d of manifest.datasets)assert.doesNotMatch(d.label,/0050|20\d\d|候選|版本|驗收/);});

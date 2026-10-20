@@ -15,7 +15,7 @@ function scenario(){
 
 test('fresh report is an in-progress zero-decision snapshot with editable blank student sections',()=>{
   const s=scenario(),html=render(s,fresh(s));
-  assert.match(html,/進行中快照/);assert.match(html,/已完成 0 \/ 4/);assert.match(html,/尚無已完成的決策/);
+  assert.match(html,/練習尚未完成/);assert.match(html,/已完成 0 \/ 4/);assert.match(html,/尚無已完成的決策/);
   assert.equal(metric(html,'current-assets'),'TWD 1,000.00');assert.equal(metric(html,'benchmark-return'),'0.00%');assert.equal(metric(html,'max-drawdown'),'0.00%');
   assert.match(html,/aria-label="學生反思"><\/div>/);assert.match(html,/aria-label="學生筆記"><\/div>/);assert.match(html,/不會自動儲存/);assert.match(html,/另存為 PDF/);
   assert.match(html,/teacher-1/);assert.match(html,/起點年份設定：2024/);assert.match(html,/2026-10-19T10:00:00Z/);
@@ -104,7 +104,7 @@ test('120-day report deduplicates news details, retains each full historical ID 
   assert.equal(lists.length,120);
   lists.forEach((ids,i)=>assert.deepEqual(ids,st.journal[i].newsIds));
   assert.equal((html.match(/<details class="no-print">/g)||[]).length,120);
-  assert.match(html,/首日基底 ID/);assert.match(html,/較前次決策新增可見 ID/);
+  assert.match(html,/首日可見來源編號/);assert.match(html,/較前次決策新增來源編號/);
   assert.match(html,/列印不包含展開清單/);
   const bytes=Buffer.byteLength(html);assert(bytes<1000000,`Report is ${bytes} bytes`);
 });

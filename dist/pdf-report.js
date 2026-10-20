@@ -1,7 +1,7 @@
-import {newsView} from './blind.js?v=preview-v10';
-import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportNumber,reportPercent,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage,reportTaxRecalculation} from './report-context.js?v=preview-v10';
-import {performanceModel} from './performance.js?v=preview-v10';
-import {visible} from './engine.js?v=preview-v10';
+import {newsView} from './blind.js?v=preview-v11';
+import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportNumber,reportPercent,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage,reportTaxRecalculation} from './report-context.js?v=preview-v11';
+import {performanceModel} from './performance.js?v=preview-v11';
+import {visible} from './engine.js?v=preview-v11';
 const F=reportNumber;
 const P=reportPercent;
 const modelLegacy=s=>!reportHasTax(s);

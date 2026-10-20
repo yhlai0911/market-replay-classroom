@@ -1,6 +1,6 @@
-import {fresh,decide,wealth,benchmark} from './engine.js?v=preview-v10';
-import {resolveCostModel,transactionCosts,modelFor,LEGACY_COST_MODEL,TAX_CORRECTION_COST_VERSION} from './costs.js?v=preview-v10';
-import {assetClassFor} from './scenario.js?v=preview-v10';
+import {fresh,decide,wealth,benchmark} from './engine.js?v=preview-v11';
+import {resolveCostModel,transactionCosts,modelFor,LEGACY_COST_MODEL,TAX_CORRECTION_COST_VERSION} from './costs.js?v=preview-v11';
+import {assetClassFor} from './scenario.js?v=preview-v11';
 
 export function makeTaxCorrectionModel(s){
   const original=modelFor(s);

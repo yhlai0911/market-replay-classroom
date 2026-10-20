@@ -1,15 +1,15 @@
 import {LEGACY_COST_MODEL,ETF_V1_COST_MODEL,transactionCosts,maxAffordableQuantity} from '../dist/costs.js';
 import {createPracticeStore,PRACTICE_STORE_KEY} from '../dist/practice-store.js';
-import {initializeSession,setIndicatorSettings} from '../dist/session.js';
+import {initializeSession,setIndicatorSettings,REVEAL_KEY} from '../dist/session.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {datasetVersion,makeSave,restoreSave,emptyDraft,SAVE_KEY} from '../dist/persistence.js';import {createScenario} from '../dist/scenario.js';import {fresh,decide} from '../dist/engine.js';
 const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),data=JSON.parse(fs.readFileSync(new URL('../dist/dataset.json',import.meta.url))),version=await datasetVersion(data);
 const s=createScenario(data,{seed:'persist-ui',startDate:'2019-11-08',length:20,startYear:'2019'});
 function activeRaw(values){const raw=values.get(PRACTICE_STORE_KEY);if(!raw)return values.get(SAVE_KEY);const x=JSON.parse(raw),save=structuredClone(x.records.find(r=>r.id===x.activeId)?.save);if(!save)return null;delete save.practice;return JSON.stringify(save);}
 let id=0;
-async function mount(raw=null,{failWrites=false,library=null,candidate=false}={}){
+async function mount(raw=null,{failWrites=false,library=null,candidate=false,revealRegistry=null}={}){
  const values=new Map(raw===null?[]:[[SAVE_KEY,raw]]),els=new Map([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,{id,value:id==='length'?'20':id==='start-year'?'all':id==='quantity'?'100':'',innerHTML:'',textContent:'',options:[{value:''}],nextElementSibling:{},style:{},hidden:false,disabled:false,handlers:{},focus(){},addEventListener(e,f){this.handlers[e]=f},reset(){radios.forEach(r=>r.checked=r.value==='buy');els.get('quantity').value='100';els.get('reason').value=''}}]));
- if(library)values.set(PRACTICE_STORE_KEY,library);
+ if(library)values.set(PRACTICE_STORE_KEY,library);if(revealRegistry)values.set(REVEAL_KEY,JSON.stringify(revealRegistry));
  const radios=['buy','sell','hold'].map(value=>({value,checked:value==='buy',handlers:{},addEventListener(e,f){this.handlers[e]=f}}));
  globalThis.document={getElementById:x=>els.get(x),querySelectorAll:()=>radios};globalThis.fetch=async path=>({ok:true,json:async()=>path==='./dataset-manifest.json'?(()=>{const m=JSON.parse(fs.readFileSync(new URL('../dist/dataset-manifest.json',import.meta.url)));if(!candidate)m.datasets=m.datasets.slice(0,1);m.defaultId=m.datasets[0].id;return m;})():path==='./dataset-0050-20040211-20261019.json'?JSON.parse(fs.readFileSync(new URL('../dist/dataset-0050-20040211-20261019.json',import.meta.url))):data});globalThis.FormData=class{get(){return radios.find(r=>r.checked).value}};globalThis.confirm=()=>true;
  if(failWrites&&raw){const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};createPracticeStore(storage,{validate:r=>restoreSave(r,data,version)}).read();}
@@ -19,7 +19,7 @@ async function mount(raw=null,{failWrites=false,library=null,candidate=false}={}
 }
 test('app restores persisted state and unsent form fields then immediately saves input and decision (DOM stub)',async()=>{
  const state=decide(s,fresh(s),'buy',100,'已完成理由');const {els,values,radios,submit}=await mount(JSON.stringify(makeSave(s,state,version,{...emptyDraft(),side:'sell',quantity:'50',reason:'未送出理由',studentName:'學生甲',notes:'舊筆記'})));
- assert.equal(els.get('shares').textContent,'100');assert.equal(els.get('reason').value,'未送出理由');assert.equal(els.get('student-name').value,'學生甲');assert.equal(radios.find(r=>r.checked).value,'sell');assert.equal(els.get('max-buy').textContent,'可賣持有量 100 單位');assert.equal(els.get('start-date').value,'2019-11-08');
+ assert.equal(els.get('shares').textContent,'100');assert.equal(els.get('reason').value,'未送出理由');assert.equal(els.get('student-name').value,'學生甲');assert.equal(radios.find(r=>r.checked).value,'sell');assert.equal(els.get('max-buy').textContent,'可賣持有量 100 單位');assert.equal(els.get('start-date').value,'');
  els.get('learning-notes').value='新的筆記';els.get('learning-notes').handlers.input();assert.equal(restoreSave(activeRaw(values),data,version).draft.notes,'新的筆記');submit();assert.equal(els.get('error').textContent,'');assert.equal(restoreSave(activeRaw(values),data,version).state.shares,50);
 });
 test('app does not overwrite broken or mismatched stored file on startup or autosave (DOM stub)',async()=>{
@@ -40,7 +40,7 @@ test('restored hold disables quantity and cancelled new game/import retain the c
 test('valid import restores settings/notes/mode and retains both independent practices (DOM stub)',async()=>{
  const {els,values}=await mount();const before=activeRaw(values),state=decide(s,fresh(s),'buy',100,'已買入'),raw=JSON.stringify(makeSave(s,state,version,{...emptyDraft(),side:'hold',notes:'匯入筆記',studentName:'甲'}));
  await els.get('import-save').handlers.change({target:{files:[{size:raw.length,text:async()=>raw}],value:'file'}});
- assert.equal(els.get('shares').textContent,'100');assert.equal(els.get('length').value,'20');assert.equal(els.get('seed').value,'persist-ui');assert.equal(els.get('start-year').value,'2019');assert.equal(els.get('start-date').value,'2019-11-08');assert.equal(els.get('quantity').disabled,true);assert.equal(els.get('learning-notes').value,'匯入筆記');assert.equal(JSON.parse(values.get(PRACTICE_STORE_KEY)).records.length,2);assert(JSON.parse(values.get(PRACTICE_STORE_KEY)).records.some(r=>r.save.state.journal.length===0));
+ assert.equal(els.get('shares').textContent,'100');assert.equal(els.get('length').value,'20');assert.equal(els.get('seed').value,'persist-ui');assert.equal(els.get('start-year').value,'all');assert.equal(els.get('start-date').value,'');assert.equal(els.get('quantity').disabled,true);assert.equal(els.get('learning-notes').value,'匯入筆記');assert.equal(JSON.parse(values.get(PRACTICE_STORE_KEY)).records.length,2);assert(JSON.parse(values.get(PRACTICE_STORE_KEY)).records.some(r=>r.save.state.journal.length===0));
 });
 test('completed save restores review and keeps order form hidden (DOM stub)',async()=>{
  let state=fresh(s);for(let i=0;i<20;i++)state=decide(s,state,'hold',0,'觀望');const {els}=await mount(JSON.stringify(makeSave(s,state,version)));
@@ -48,9 +48,9 @@ test('completed save restores review and keeps order form hidden (DOM stub)',asy
 });
 test('automatic starts stay automatic across setup/restore, while explicit dates remain fixed (DOM stub)',async()=>{
  const automatic=createScenario(data,{seed:'auto-A',length:20,startYear:'2019'});const {els,values}=await mount(JSON.stringify(makeSave(automatic,fresh(automatic),version)));
- assert.equal(els.get('start-date').value,'');els.get('seed').value='auto-B';els.get('apply-setup').handlers.click();
+ assert.equal(els.get('start-date').value,'');els.get('reveal-identity').handlers.click();els.get('seed').value='auto-B';els.get('apply-setup').handlers.click();
  const expected=createScenario(data,{seed:'auto-B',length:20,startYear:'2019'}),restored=restoreSave(activeRaw(values),data,version);assert.equal(restored.s.startDate,expected.startDate);assert.equal(restored.s.requestedStartDate,null);assert.equal(els.get('start-date').value,'');
- els.get('start-date').value='2019-11-08';els.get('seed').value='explicit-C';els.get('apply-setup').handlers.click();assert.equal(restoreSave(activeRaw(values),data,version).s.startDate,'2019-11-08');assert.equal(els.get('start-date').value,'2019-11-08');
+ els.get('reveal-identity').handlers.click();els.get('start-date').value='2019-11-08';els.get('seed').value='explicit-C';els.get('apply-setup').handlers.click();assert.equal(restoreSave(activeRaw(values),data,version).s.startDate,'2019-11-08');assert.equal(els.get('start-date').value,'');
 });
 test('fresh UI hides identity in chart, news, source text and selectors; decline then reveal is permanent (DOM stub)',async()=>{const {els,values}=await mount();const shown=['ticker-date','clock','scenario-title','scenario-desc','asset','ohlc','news','macro','chart','data-note'].map(id=>els.get(id).innerHTML+els.get(id).textContent).join('\n');assert(!/\b0050\b|元大台灣|\b(?:19|20)\d{2}-\d{2}-\d{2}/.test(shown),shown.match(/.{0,30}(?:\b0050\b|元大台灣|\b(?:19|20)\d{2}-\d{2}-\d{2}).{0,50}/)?.[0]);assert.equal(els.get('year-field').hidden,true);assert.equal(els.get('date-field').hidden,true);assert.equal(els.get('start-date').innerHTML.includes('2019'),false);globalThis.confirm=()=>false;els.get('reveal-identity').handlers.click();assert.equal(restoreSave(activeRaw(values),data,version).s.blind.everRevealed,false);let prevented=false;els.get('source-notice-link').handlers.click({preventDefault(){prevented=true}});assert(prevented);globalThis.confirm=()=>true;els.get('reveal-identity').handlers.click();const restored=restoreSave(activeRaw(values),data,version);assert.equal(restored.s.blind.everRevealed,true);assert.equal(els.get('ticker-symbol').textContent,'0050');assert.equal(els.get('reveal-identity').disabled,true);});
 test('on-chart selected indicator editing preserves other choices, history and restored preferences (DOM stub)',async()=>{
@@ -79,9 +79,9 @@ test('legacy UI distinguishes previously known identity from manual reveal befor
 test('new UI keeps automatic completion and manual disclosure labels distinct (DOM stub)',async()=>{
  let mounted=await mount();assert.equal(mounted.els.get('blind-status').textContent,'盲測模式 · 標的與日期隱藏');
  const initial=restoreSave(activeRaw(mounted.values),data,version);let state=initial.state;for(let i=0;i<initial.s.length;i++)state=decide(initial.s,state,'hold',0,'完成');
- mounted=await mount(JSON.stringify(makeSave(initial.s,state,version)));assert.equal(mounted.els.get('blind-status').textContent,'回合完成 · 身分自動揭曉');
- initial.s.blind={revealed:true,everRevealed:true,revealedAtStep:0};mounted=await mount(JSON.stringify(makeSave(initial.s,initial.state,version)));assert.equal(mounted.els.get('blind-status').textContent,'本回合曾主動揭露');
- mounted=await mount(JSON.stringify(makeSave(initial.s,state,version)));assert.equal(mounted.els.get('blind-status').textContent,'回合完成 · 本回合曾主動揭露');
+ mounted=await mount(JSON.stringify(makeSave(initial.s,state,version)));assert.equal(mounted.els.get('blind-status').textContent,'回合完成 · 報告可查看背景資訊');
+ initial.s.blind={revealed:true,everRevealed:true,revealedAtStep:0};mounted=await mount(JSON.stringify(makeSave(initial.s,initial.state,version)));assert.equal(mounted.els.get('blind-status').textContent,'曾查看背景資訊 · 目前畫面隱藏身分');
+ mounted=await mount(JSON.stringify(makeSave(initial.s,state,version)));assert.equal(mounted.els.get('blind-status').textContent,'回合完成 · 曾查看背景資訊 · 目前畫面隱藏身分');
 });
 
 test('three-line preset, independent edit/remove and backup round trip preserve every MA instance (DOM stub)',async()=>{
@@ -197,3 +197,38 @@ test('tax recalculation previews then saves a separate replayable copy while ori
 });
 test('tax recalculation persistence failure does not create copy or mutate original record',async()=>{const scenario=initializeSession(createScenario(data,{seed:'tax-failure',costModel:LEGACY_COST_MODEL}));const m=await mount(JSON.stringify(makeSave(scenario,fresh(scenario),version)));const before=m.values.get(PRACTICE_STORE_KEY);globalThis.localStorage.setItem=()=>{throw Error('quota');};m.els.get('recalculate-tax').handlers.click();assert.equal(m.values.get(PRACTICE_STORE_KEY),before);assert.match(m.els.get('save-status').textContent,/補計失敗/);});
 test('tax correction cash conflict stops at first affected decision without writing a partial copy',async()=>{const {replayWithCosts}=await import('../dist/cost-replay.js');let found;for(let n=0;n<30&&!found;n++){const scenario=initializeSession(createScenario(data,{seed:'tight-tax-'+n,costModel:LEGACY_COST_MODEL}));let state=fresh(scenario);while(!state.finished){const side=state.shares?'sell':'buy',quantity=side==='sell'?state.shares:Math.floor(state.cash/(scenario.rounds[state.index].price*1.001));state=decide(scenario,state,side,quantity,'original full allocation');}const result=replayWithCosts(scenario,state);if(!result.ok)found={scenario,state,result};}assert(found,'real history has a cash-tight replay conflict');const m=await mount(JSON.stringify(makeSave(found.scenario,found.state,version)));const before=m.values.get(PRACTICE_STORE_KEY);globalThis.confirm=()=>{throw Error('conflicting replay must not request saving');};m.els.get('recalculate-tax').handlers.click();assert.equal(m.values.get(PRACTICE_STORE_KEY),before);assert.match(m.els.get('save-status').textContent,new RegExp('第 '+found.result.conflict.decisionNumber+' 筆'));assert.match(m.els.get('save-status').textContent,/未建立副本/);});
+
+function assertOperationHidden(els){
+ for(const id of ['game-status','journal','blind-status-mini','ticker-symbol','ticker-name','ticker-date','clock','scenario-title','scenario-desc','ohlc','news','macro','chart','data-note','start-date','start-year','new-dataset']){
+  const text=els.get(id).textContent+' '+els.get(id).innerHTML.replace(/value="[^"]*"/g,'');
+  assert.doesNotMatch(text,/\b0050\b|元大台灣|\b(?:19|20)\d{2}[-/]\d{2}[-/]\d{2}/,id);
+ }
+ assert.equal(els.get('year-field').hidden,true);assert.equal(els.get('date-field').hidden,true);
+}
+test('operation concealment is independent from restored revealed, finished and legacy knowledge',async()=>{
+ for(const kind of ['fresh','revealed','finished','legacy']){
+  const scenario=initializeSession(createScenario(data,{seed:'conceal-'+kind,...(kind==='legacy'?{costModel:LEGACY_COST_MODEL}:{})}));let state=fresh(scenario);
+  if(kind==='revealed')scenario.blind={revealed:true,everRevealed:true,revealedAtStep:0};
+  if(kind==='finished')for(let i=0;i<scenario.length;i++)state=decide(scenario,state,'hold',0,'完整紀錄');
+  const save=makeSave(scenario,state,version);if(kind==='legacy'){save.version=1;for(const k of ['warmup','blind','indicatorSettings','indicatorHistory'])delete save.scenario[k];}
+  const ui=await mount(kind==='fresh'?null:JSON.stringify(save));assertOperationHidden(ui.els);if(kind!=='fresh'){assert.match(ui.els.get('save-status').textContent,/已恢復/);assert.equal(JSON.parse(activeRaw(ui.values)).state.journal.length,state.journal.length);}
+  ui.els.get('tab-setup').handlers.click();assertOperationHidden(ui.els);
+  ui.els.get('tab-trade').handlers.click();assertOperationHidden(ui.els);
+  if(kind==='revealed')assert.equal(restoreSave(activeRaw(ui.values),data,version).s.blind.everRevealed,true);
+ }
+});
+test('explicit display consent resets on reload, new practice and reopening known practice without erasing knowledge',async()=>{
+ let ui=await mount();ui.els.get('reveal-identity').handlers.click();assert.equal(ui.els.get('ticker-symbol').textContent,'0050');
+ const raw=activeRaw(ui.values);ui=await mount(raw);assertOperationHidden(ui.els);assert.equal(restoreSave(activeRaw(ui.values),data,version).s.blind.everRevealed,true);
+ ui.els.get('reveal-identity').handlers.click();ui.els.get('random-start').handlers.click();assertOperationHidden(ui.els);
+ const envelope=JSON.parse(ui.values.get(PRACTICE_STORE_KEY)),known=envelope.records.find(r=>r.save.scenario.blind.everRevealed);
+ await ui.els.get('records-list').handlers.click({target:{closest:()=>({dataset:{practiceAction:'open',id:known.id}})}});assertOperationHidden(ui.els);assert.equal(restoreSave(activeRaw(ui.values),data,version).s.blind.everRevealed,true);
+});
+
+test('same scenario knowledge registry does not force visible identity and source link still requires consent',async()=>{
+ const scenario=initializeSession(createScenario(data,{seed:'known-before'})),state=fresh(scenario),raw=JSON.stringify(makeSave(scenario,state,version));
+ const ui=await mount(raw,{revealRegistry:{[version+'|'+scenario.id]:{step:0}}});assertOperationHidden(ui.els);
+ assert.match(ui.els.get('blind-status').textContent,/曾查看背景資訊/);
+ globalThis.confirm=()=>false;let prevented=false;ui.els.get('source-notice-link').handlers.click({preventDefault(){prevented=true}});assert.equal(prevented,true);assertOperationHidden(ui.els);
+ ui.els.get('reason').handlers.input();assert.equal(restoreSave(activeRaw(ui.values),data,version).s.blind.everRevealed,true);
+});

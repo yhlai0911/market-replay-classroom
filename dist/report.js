@@ -1,7 +1,7 @@
-import {newsView} from './blind.js?v=preview-v10';
-import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportDisplayValue,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage,reportTaxRecalculation} from './report-context.js?v=preview-v10';
-import {performanceModel} from './performance.js?v=preview-v10';
-import {wealth, benchmark, visible, mark} from './engine.js?v=preview-v10';
+import {newsView} from './blind.js?v=preview-v11';
+import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportDisplayValue,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage,reportTaxRecalculation} from './report-context.js?v=preview-v11';
+import {performanceModel} from './performance.js?v=preview-v11';
+import {wealth, benchmark, visible, mark} from './engine.js?v=preview-v11';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const number = value => Number.isFinite(value) ? reportDisplayValue(value).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2}) : '資料不足';

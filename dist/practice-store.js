@@ -23,10 +23,10 @@ export function createPracticeStore(storage, { validate } = {}) {
   function get(key) {
     try { return storage.getItem(key); } catch { fail('瀏覽器無法讀取本機練習；請使用 JSON 備份', 'STORAGE_READ'); }
   }
-  function validateSave(save) {
+  function validateSave(save, preserveUnavailable = false) {
     if (!save || typeof save !== 'object' || Array.isArray(save)) fail('練習存檔格式損壞，原資料已保留', 'CORRUPT');
     const raw = JSON.stringify(save);
-    if (validate(raw) === false) fail('練習存檔校驗失敗，原資料已保留', 'CORRUPT');
+    try { if (validate(raw) === false) fail('練習存檔校驗失敗，原資料已保留', 'CORRUPT'); } catch (error) { if (!preserveUnavailable || error.code !== 'DATASET_UNAVAILABLE') throw error; }
     return save;
   }
   function decode(raw) {
@@ -35,19 +35,19 @@ export function createPracticeStore(storage, { validate } = {}) {
     const ids = new Set();
     for (const record of parsed.records) {
       if (!record || typeof record.id !== 'string' || !UUID.test(record.id) || ids.has(record.id) || typeof record.name !== 'string' || record.name !== validName(record.name) || !(record.deletedAt === null || typeof record.deletedAt === 'string' && Number.isFinite(Date.parse(record.deletedAt)))) fail('練習紀錄識別碼或名稱損壞，原資料已保留', 'CORRUPT');
-      ids.add(record.id); validateSave(record.save);
+      ids.add(record.id); validateSave(record.save, true);
       if (record.save.practice?.id !== record.id || record.save.practice?.name !== record.name) fail('練習名稱與存檔資料不一致，原資料已保留', 'CORRUPT');
     }
     if (parsed.activeId !== null && !parsed.records.some(record => record.id === parsed.activeId && record.deletedAt === null)) fail('目前練習指標損壞，原資料已保留', 'CORRUPT');
     return parsed;
   }
-  function makeRecord(save, records, name, uniqueName=false) {
-    validateSave(save);
+  function makeRecord(save, records, name, uniqueName=false, preserveUnavailable=false) {
+    validateSave(save, preserveUnavailable);
     let id; do { id = uuid(); } while (records.some(record => record.id === id));
     let displayName = name ?? (typeof save.practice?.name === 'string' && save.practice.name.trim() ? validName(save.practice.name) : `練習 ${records.length + 1}`);
     if(uniqueName){const base=displayName;let copyNumber=2;while(records.some(r=>r.name===displayName)){const suffix=`（副本 ${copyNumber++}）`;displayName=base.slice(0,100-suffix.length)+suffix;}}
     const stored = copy(save); stored.practice = { id, name: displayName };
-    validateSave(stored);
+    validateSave(stored, preserveUnavailable);
     return { id, name: displayName, save: stored, deletedAt: null };
   }
   function activeRaw(source = envelope) {
@@ -90,8 +90,8 @@ export function createPracticeStore(storage, { validate } = {}) {
       for (const [source, name] of [[legacy, undefined], [backup, '前一份練習（移轉）']]) {
         if (source === null) continue;
         // Validate the original bytes, then preserve every save field, even for identical backups.
-        if (validate(source) === false) fail('舊存檔校驗失敗，原資料已保留', 'CORRUPT');
-        const record = makeRecord(JSON.parse(source), next.records, name);
+        try { if (validate(source) === false) fail('舊存檔校驗失敗，原資料已保留', 'CORRUPT'); } catch (error) { if (error.code !== 'DATASET_UNAVAILABLE') throw error; }
+        const record = makeRecord(JSON.parse(source), next.records, name, false, true);
         next.records.push(record);
         if (next.activeId === null) next.activeId = record.id;
       }
@@ -127,6 +127,7 @@ export function createPracticeStore(storage, { validate } = {}) {
     activate(id) {
       writable(); const next = copy(envelope), record = recordById(next, id);
       if (record.deletedAt !== null) fail('這份練習在垃圾桶，請先還原', 'DELETED');
+      validateSave(record.save);
       next.activeId = id; commit(next); return activeRaw();
     },
     rename(id, name) {

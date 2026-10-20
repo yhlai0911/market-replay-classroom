@@ -7,7 +7,7 @@ test('workspace stage navigation preserves replay and draft; setup shortcut does
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'No duplicate DOM ids');
  const els=new Map(ids.map(id=>[id,{id,value:id==='length'?'20':id==='start-year'?'all':id==='quantity'?'100':'',innerHTML:'',textContent:'',options:[{value:''}],nextElementSibling:{},style:{},hidden:false,disabled:false,handlers:{},attributes:{},focus(){this.focused=true},setAttribute(k,v){this.attributes[k]=v},addEventListener(k,f){this.handlers[k]=f},reset(){}}]));
  globalThis.document={body:{dataset:{}},getElementById:id=>els.get(id),querySelectorAll:()=>[]};
- const storageValues=new Map();globalThis.localStorage={getItem:k=>storageValues.get(k)??null,setItem:(k,v)=>storageValues.set(k,v)};globalThis.fetch=async()=>({ok:true,json:async()=>data});globalThis.FormData=class{get(){return 'hold'}};globalThis.confirm=()=>true;
+ const storageValues=new Map();globalThis.localStorage={getItem:k=>storageValues.get(k)??null,setItem:(k,v)=>storageValues.set(k,v)};globalThis.fetch=async path=>({ok:true,json:async()=>path==='./dataset-manifest.json'?(()=>{const m=JSON.parse(fs.readFileSync(new URL('../dist/dataset-manifest.json',import.meta.url)));m.datasets=m.datasets.slice(0,1);m.defaultId=m.datasets[0].id;return m;})():data});globalThis.FormData=class{get(){return 'hold'}};globalThis.confirm=()=>true;
  await import('../dist/app.js?workspace-nav-test');
  const click=id=>els.get(id).handlers.click();
  assert.equal(els.get('view-setup').hidden,false);assert.equal(els.get('view-trade').hidden,true);assert.equal(document.body.dataset.view,'setup');

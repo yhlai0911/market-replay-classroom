@@ -16,7 +16,7 @@ async function mount(){
   }]));
   const radios=['buy','sell','hold'].map(value=>({value,get checked(){return side===value},set checked(v){if(v)side=value},handlers:{},addEventListener(ev,fn){this.handlers[ev]=fn}}));
   globalThis.document={getElementById:id=>els.get(id),querySelectorAll:()=>radios};
-  const storageValues=new Map();globalThis.localStorage={getItem:k=>storageValues.get(k)??null,setItem:(k,v)=>storageValues.set(k,v)};globalThis.fetch=async()=>({ok:true,json:async()=>data});
+  const storageValues=new Map();globalThis.localStorage={getItem:k=>storageValues.get(k)??null,setItem:(k,v)=>storageValues.set(k,v)};globalThis.fetch=async path=>({ok:true,json:async()=>path==='./dataset-manifest.json'?(()=>{const m=JSON.parse(fs.readFileSync(new URL('../dist/dataset-manifest.json',import.meta.url)));m.datasets=m.datasets.slice(0,1);m.defaultId=m.datasets[0].id;return m;})():data});
   globalThis.confirm=()=>true;
   globalThis.FormData=class{get(){return side}};
   await import(`../dist/app.js?hint-test=${mount.count++}`);

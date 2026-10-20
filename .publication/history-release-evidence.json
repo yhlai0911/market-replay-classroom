@@ -1,0 +1,51 @@
+{
+  "status": "PASS_CHECKED_SCOPE",
+  "candidate": "candidates/dataset-expanded-candidate.json",
+  "byteSha256": "3ebfd58dbb22276d2182118b6c5a6d5c255568f3fbe3446e09df25074172ae02",
+  "canonicalHash": "sha256:78923f3d41d65a0eecb9b8d1d00940dbd013ab3c9fb9476872764d8da8d3e55a",
+  "bars": 5580,
+  "sourceRowsCompared": 5580,
+  "baselineRowsUnchanged": 1696,
+  "newRowsCompared": 3884,
+  "rawHashChecks": 1867,
+  "hardErrors": 0,
+  "unresolvedFlags": 0,
+  "reviewedFlags": 56,
+  "calendar": {
+    "months": 273,
+    "range": [
+      "200402",
+      "202610"
+    ],
+    "marketSessions": 5585,
+    "bars": 5580,
+    "missingVerifiedSuspensions": [
+      "2025-06-11",
+      "2025-06-12",
+      "2025-06-13",
+      "2025-06-16",
+      "2025-06-17"
+    ],
+    "unexplainedMissing": [],
+    "unexpectedBars": []
+  },
+  "eligibleWindowsChecked": 42960,
+  "scopeLimits": [
+    "官方來源一致性及異常篩查不等於絕對正確保證",
+    "早期七筆公告時間未知；不提供為事前消息",
+    "當前任務截止2026-10-19，不含之後資料"
+  ],
+  "checkedAt": "2026-10-20T00:08:06.944Z",
+  "crossEndpointChecks": {
+    "dates": [
+      "2010-01-04",
+      "2018-12-28",
+      "2019-01-02",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-10-19"
+    ],
+    "differences": 0,
+    "method": "TWSE MI_INDEX versus STOCK_DAY, distinct reporting endpoints from same publisher, not an independent exchange source"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "defaultId": "0050-expanded-20261019",
+  "datasets": [
+    {
+      "id": "0050-v8-original",
+      "instrument": "0050",
+      "label": "原始資料版（既有練習相容）",
+      "path": "./dataset.json",
+      "hash": "sha256:8b040e01132231c2624a8e549928adb207f15db587a88cc074167d39a62e72c1",
+      "coverage": {
+        "news": {
+          "status": "selected",
+          "ranges": [
+            {
+              "start": "2019-01-01",
+              "end": "2025-12-31"
+            }
+          ]
+        },
+        "corporateActions": {
+          "status": "verified",
+          "ranges": [
+            {
+              "start": "2019-01-01",
+              "end": "2025-12-31"
+            }
+          ],
+          "announcementStatus": "partial"
+        },
+        "unexplainedGaps": []
+      }
+    },
+    {
+      "id": "0050-expanded-20261019",
+      "instrument": "0050",
+      "label": "擴充資料版",
+      "path": "./dataset-0050-20040211-20261019.json",
+      "hash": "sha256:78923f3d41d65a0eecb9b8d1d00940dbd013ab3c9fb9476872764d8da8d3e55a",
+      "coverage": {
+        "news": {
+          "status": "selected",
+          "ranges": [
+            {
+              "start": "2019-01-01",
+              "end": "2025-12-31"
+            }
+          ]
+        },
+        "corporateActions": {
+          "status": "verified",
+          "ranges": [
+            {
+              "start": "2004-02-11",
+              "end": "2026-10-19"
+            }
+          ],
+          "announcementStatus": "partial"
+        },
+        "unexplainedGaps": []
+      },
+      "verification": {
+        "status": "PASS_CHECKED_SCOPE",
+        "hardErrors": 0,
+        "unresolvedFlags": 0,
+        "marketSessions": 5585,
+        "verifiedSuspensionDays": 5,
+        "checkedAt": "2026-10-20T00:08:06.944Z"
+      }
+    }
+  ]
+}

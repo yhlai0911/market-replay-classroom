@@ -1,7 +1,7 @@
-import {newsView} from './blind.js?v=preview-v8';
-import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportNumber,reportPercent,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax} from './report-context.js?v=preview-v8';
-import {performanceModel} from './performance.js?v=preview-v8';
-import {visible} from './engine.js?v=preview-v8';
+import {newsView} from './blind.js?v=preview-v9';
+import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportNumber,reportPercent,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage} from './report-context.js?v=preview-v9';
+import {performanceModel} from './performance.js?v=preview-v9';
+import {visible} from './engine.js?v=preview-v9';
 const F=reportNumber;
 const P=reportPercent;
 const modelLegacy=s=>!reportHasTax(s);
@@ -76,7 +76,7 @@ export async function performancePdf(s,state,options={},dependencies){
     para(`當時可見資訊 ${ids.length} 則；相關新聞：${compressed.length?'附錄 '+compressed.join('、'):'無新增或明確提及參照'}。`,{size:8,color:C.muted,gap:5});line(M,y,W-M,y);y+=11;});
   need(110);section='學生筆記與反思';para('以下保留使用者原文，不改寫。自由輸入可能自行透露日期、標的或其他身份資訊。',{size:9,color:C.muted});heading('04','完整操作筆記');para(options.notes||'（未填寫）');heading('05','事後反思');para(options.reflection||'（未填寫）');
   if(String(options.reason??'').trim()){heading('06','尚未送出的決策草稿');para(`方向：${labels[options.side]??options.side}；委託單位：${options.side==='hold'?'不適用':options.quantity}\n此草稿尚未執行，不計入績效。`,{color:C.muted});para(options.reason);}
-  newPage('計算口徑與資料來源');heading('07','方法與限制');
+  newPage('計算口徑與資料來源');heading('07','方法與限制');para(`資料版本：${reportDatasetLabel(s,state)}`,{size:10,color:C.teal});para(reportDataCoverage(s,state),{size:9.5});
   const methods=[`總資產＝現金＋持倉市值＋應收配息。${state.finished?'期末使用最後完成交易日收盤價':'目前使用當時已知昨收價'}，未扣假設平倉費用。淨損益＝總資產－初始資產；報酬＝淨損益／初始資產。本局模型費稅已於交易時扣除，不重複扣減。`,'買入持有基準：首日開盤以相同初始資金買入可負擔整數單位，使用相同買入手續費規則（含適用最低費及取整），保留零頭現金；計入分割與取得的配息權利，不再投資。相對報酬為兩個報酬率之差，單位為百分點。','圖表只使用初始資產和已完成決策收盤觀測。成交金額為買賣成交價×成交單位的絕對金額總和；周轉指標以其除以初始資產，並非雙邊平均資產周轉率。','不提供年化報酬、Sharpe 或交易勝率：短期樣本與未平倉部位不足以支持可靠年化或完整已實現損益歸因。',reportCostDescription(s),reportCostSources(context.visible),'配息以除息前持倉取得權利；發放日開盤前入帳為教學簡化，未驗證券商實際時刻。','新聞為精選子集，不代表完整當時資訊；歷史存檔可能有重發或修訂。僅列當時已可見資料，不含未揭露行情。來源機構不為本教學報告背書。報告可自行產生，不是經驗證的交易或考試憑證。',`${context.visible?'情境：'+s.title+'\n資料可見截止：'+v.cutoff:'匿名報告：真實情境與歷史截止日期已隱藏'}\n產生時間（UTC）：${generated}`];methods.forEach(x=>para(x,{size:9.5}));
   newPage('技術附錄：設定與完整紀錄');heading('08','技術附錄：回合與版本');para(reportConfiguration(s,state),{size:9.5});
   heading('09','設定歷程與參數版本');para('每次調整均保留；完成 N 筆後的設定適用下一筆，同一步最後一筆生效。P 編號代表完整參數版本，相同內容只列一次。每筆決策仍以原設定 # 編號核對。',{size:9,color:C.muted});

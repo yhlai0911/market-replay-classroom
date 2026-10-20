@@ -1,4 +1,4 @@
-import {modelFor} from './costs.js?v=preview-v8';
+import {modelFor} from './costs.js?v=preview-v9';
 /** Shared presentation policy. It never edits a learner's authored text. */
 export function reportContext(s,state){
   const completed=Boolean(state.finished)||state.journal.length>=s.rounds.length;
@@ -29,7 +29,7 @@ export function settingsText(settings){
 }
 export function reportConfiguration(s,state){
   const c=reportContext(s,state);
-  return [`身份狀態：${c.status}`,`揭露紀錄：${c.reveal}`,`種子：${s.seed??'未記錄'}`,`資料版本：${s.datasetVersion??'未記錄（舊版資料）'}`,`回合長度：${s.rounds.length} 個決策日；已完成 ${state.journal.length} 日；暖機資料 ${s.warmup??s.history?.length??'未記錄'} 日`,`初始資金：${s.initialCash} ${s.currency??'TWD'}`,reportCostDescription(s),c.visible?`真實標的：${s.asset}\n真實開始日期：${s.startDate}\n起點年份設定：${s.startYear}\n指定起點：${s.requestedStartDate??"自動抽樣"}\n情境 ID：${s.id}`:'標的、真實日期、年份與來源連結在結束或主動揭露後顯示。', '種子需配合相同資料版本與回合設定才能復現。匿名僅是教學介面遮罩，不是加密或防作弊措施。','姓名、種子、理由與筆記等自由輸入原文不改寫，可能自行透露日期或標的。'].join('\n');
+  return [`身份狀態：${c.status}`,`揭露紀錄：${c.reveal}`,`種子：${s.seed??'未記錄'}`,`資料版本名稱：${reportDatasetLabel(s,state)}`,reportDataCoverage(s,state),`資料版本：${s.datasetVersion??'未記錄（舊版資料）'}`,`回合長度：${s.rounds.length} 個決策日；已完成 ${state.journal.length} 日；暖機資料 ${s.warmup??s.history?.length??'未記錄'} 日`,`初始資金：${s.initialCash} ${s.currency??'TWD'}`,reportCostDescription(s),c.visible?`真實標的：${s.asset}\n真實開始日期：${s.startDate}\n起點年份設定：${s.startYear}\n指定起點：${s.requestedStartDate??"自動抽樣"}\n情境 ID：${s.id}`:'標的、真實日期、年份與來源連結在結束或主動揭露後顯示。', '種子需配合相同資料版本與回合設定才能復現。匿名僅是教學介面遮罩，不是加密或防作弊措施。','姓名、種子、理由與筆記等自由輸入原文不改寫，可能自行透露日期或標的。'].join('\n');
 }
 
 /** Student-facing summary. Full identifiers and colors remain in settingsText's technical appendix. */
@@ -68,3 +68,22 @@ export function reportCostDescription(s){
  return `${reportCostLabel(s)}（${m.version}）。成本設定整局固定。\n`+setup+(legacy?`保留舊局原始計算與資產，不回溯補稅。雙向手續費率 ${exactPercent(m.feeRate)}；未計證交稅、最低手續費或整元取整，並非完整真實交易成本。`:`雙向手續費率 ${exactPercent(m.feeRate)}；每筆最低手續費 ${m.minimumCommission} TWD；賣出證交稅率 ${exactPercent(m.sellTaxRate)}，買入不課證交稅。手續費＝成交額×費率無條件捨去至整元後套最低費；證交稅＝賣出成交額×稅率無條件捨去至整元；取整規則 ${m.rounding}。最低費為 0 時是教學假設；費率及最低費為自訂模擬值，非全市場統一標準。`)+`\n成交額＝數量×開盤價的理論成交額，未模擬真實零股獨立撮合、逐筆交割取整、滑價或流動性限制；不含股利所得稅。整數單位，不可放空或槓桿。基準只在首日買入，沒有虛擬期末賣出或賣出稅。`;
 }
 export function reportCostSources(visible){return '費稅參考：證券交易稅條例第 2 條（個股一般交易賣方 0.3%、ETF 賣方 0.1%）；臺灣證券交易所 ETF 交易規則（ETF 賣方證交稅）；營業細則第 94 條（券商自訂手續費與最低費）。'+(visible?'\nhttps://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=G0340078\nhttps://www.twse.com.tw/zh/products/securities/etf/overview/rules.html\nhttps://twse-regulation.twse.com.tw/TW/law/DOC01.aspx?FLCODE=FL007304&FLNO=94':'來源連結於揭露後顯示。');}
+
+/** Coverage is dataset metadata, never a fabricated historical news item. */
+export function reportDatasetLabel(s,state){
+ const label=String(s.datasetLabel??'未標示名稱的資料版本');
+ return reportContext(s,state).visible?label:label.replace(/0050|元大(?:台灣|臺灣)?\s*(?:50|五十)/gi,'匿名標的').replace(/https?:\/\/\S+/gi,'[連結隱藏]').replace(/(?:19|20)\d{2}(?:[-/.年]\d{1,2}(?:[-/.月]\d{1,2}日?)?)?/g,'[日期隱藏]');
+}
+export function reportDataCoverage(s,state){
+ const c=reportContext(s,state),coverage=s.dataCoverage;
+ if(!coverage)return '資料覆蓋：此版本未附完整覆蓋註記；新聞與公司行動是否齊全尚無足夠資料判定。沒有消息不代表當時沒有事件。';
+ const start=s.rounds[0]?.at?.slice(0,10)??s.startDate,end=s.rounds.at(-1)?.at?.slice(0,10)??start;
+ const covers=ranges=>(ranges??[]).some(r=>r.start<=start&&r.end>=end);
+ const news=coverage.news,actions=coverage.corporateActions,gaps=coverage.unexplainedGaps??[];
+ const lines=[covers(news?.ranges)?'新聞覆蓋：本回合位於已收錄的精選新聞區間，仍非完整當時資訊。':'新聞覆蓋不足：本回合部分或全部期間不在已收錄的精選新聞區間；未提供新聞不代表當時沒有事件。',actions?.status==='verified'&&covers(actions.ranges)?'公司行動：本回合位於已核實的權益資料覆蓋區間。':'公司行動：本回合配息、分割及停牌資料覆蓋尚未完整驗證，績效可能受缺漏影響。'];
+ if(actions?.announcementStatus==='partial')lines.push('部分公司行動原始公告時間尚未核實，不預先列為可見消息；已核實的股息權益與發放日仍依資料計算。');
+ if(gaps.some(g=>g.start<=end&&g.end>=start))lines.push('警示：本回合與未解釋的價格資料缺口重疊，不宜視為連續完整樣本。');
+ else if(gaps.length)lines.push('此資料版本含未解釋的價格缺口；本回合未跨越已標記缺口。');
+ if(c.visible){const ranges=(items=[])=>items.map(r=>`${r.start} 至 ${r.end}`).join('；')||'未提供';lines.push(`版本新聞收錄區間：${ranges(news?.ranges)}`,`公司行動核實區間：${ranges(actions?.ranges)}；權益狀態 ${actions?.status??'未提供'}；公告時間狀態 ${actions?.announcementStatus??'未提供'}`);}
+ return lines.join('\n');
+}

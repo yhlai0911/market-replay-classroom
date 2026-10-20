@@ -1,4 +1,4 @@
-import {fresh, decide, wealth, benchmark, mark} from './engine.js?v=preview-v11';
+import {fresh, decide, wealth, benchmark, mark} from './engine.js?v=preview-v12';
 
 const percentage = (part, whole) => whole > 0 ? part / whole * 100 : 0;
 const returnPercent = (value, initial) => percentage(value - initial, initial);

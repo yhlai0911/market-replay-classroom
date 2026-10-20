@@ -1,4 +1,4 @@
-import {modelFor} from './costs.js?v=preview-v11';
+import {modelFor} from './costs.js?v=preview-v12';
 /** Shared presentation policy. It never edits a learner's authored text. */
 export function reportContext(s,state){
   const completed=Boolean(state.finished)||state.journal.length>=s.rounds.length;

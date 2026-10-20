@@ -8,7 +8,7 @@ const s=createScenario(data,{seed:'persist-ui',startDate:'2019-11-08',length:20,
 function activeRaw(values){const raw=values.get(PRACTICE_STORE_KEY);if(!raw)return values.get(SAVE_KEY);const x=JSON.parse(raw),save=structuredClone(x.records.find(r=>r.id===x.activeId)?.save);if(!save)return null;delete save.practice;return JSON.stringify(save);}
 let id=0;
 async function mount(raw=null,{failWrites=false,library=null,candidate=false,revealRegistry=null}={}){
- const values=new Map(raw===null?[]:[[SAVE_KEY,raw]]),els=new Map([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,{id,value:id==='length'?'20':id==='start-year'?'all':id==='quantity'?'100':'',innerHTML:'',textContent:'',options:[{value:''}],nextElementSibling:{},style:{},hidden:false,disabled:false,handlers:{},focus(){},addEventListener(e,f){this.handlers[e]=f},reset(){radios.forEach(r=>r.checked=r.value==='buy');els.get('quantity').value='100';els.get('reason').value=''}}]));
+ const values=new Map(raw===null?[]:[[SAVE_KEY,raw]]),els=new Map([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,{id,value:id==='length'?'20':id==='start-year'?'all':id==='quantity'?'100':'',innerHTML:'',textContent:'',options:[{value:''}],nextElementSibling:{},style:{},hidden:false,disabled:false,handlers:{},focus(){this.focused=true},addEventListener(e,f){this.handlers[e]=f},reset(){radios.forEach(r=>r.checked=r.value==='buy');els.get('quantity').value='100';els.get('reason').value=''}}]));
  if(library)values.set(PRACTICE_STORE_KEY,library);if(revealRegistry)values.set(REVEAL_KEY,JSON.stringify(revealRegistry));
  const radios=['buy','sell','hold'].map(value=>({value,checked:value==='buy',handlers:{},addEventListener(e,f){this.handlers[e]=f}}));
  globalThis.document={getElementById:x=>els.get(x),querySelectorAll:()=>radios};globalThis.fetch=async path=>({ok:true,json:async()=>path==='./dataset-manifest.json'?(()=>{const m=JSON.parse(fs.readFileSync(new URL('../dist/dataset-manifest.json',import.meta.url)));if(!candidate)m.datasets=m.datasets.slice(0,1);m.defaultId=m.datasets[0].id;return m;})():path==='./dataset-0050-20040211-20261019.json'?JSON.parse(fs.readFileSync(new URL('../dist/dataset-0050-20040211-20261019.json',import.meta.url))):data});globalThis.FormData=class{get(){return radios.find(r=>r.checked).value}};globalThis.confirm=()=>true;
@@ -231,4 +231,19 @@ test('same scenario knowledge registry does not force visible identity and sourc
  assert.match(ui.els.get('blind-status').textContent,/曾查看背景資訊/);
  globalThis.confirm=()=>false;let prevented=false;ui.els.get('source-notice-link').handlers.click({preventDefault(){prevented=true}});assert.equal(prevented,true);assertOperationHidden(ui.els);
  ui.els.get('reason').handlers.input();assert.equal(restoreSave(activeRaw(ui.values),data,version).s.blind.everRevealed,true);
+});
+test('visible per-line remove controls remove only selected indicator and preserve trading records',async()=>{
+ const ui=await mount();ui.els.get('indicator-options').handlers.click({target:{closest:()=>({dataset:{preset:'5,20,60'}})}});
+ const before=JSON.parse(activeRaw(ui.values)),lines=before.scenario.indicatorSettings.movingAverages;
+ assert.equal((ui.els.get('indicator-chips').innerHTML.match(/>移除<\/button>/g)??[]).length,3);
+ assert.match(ui.els.get('indicator-chips').innerHTML,/aria-label="移除 SMA 20 線 2"/);
+ ui.els.get('indicator-chips').handlers.click({target:{closest:()=>({dataset:{removeIndicator:'sma',instance:lines[1].id}})}});
+ const after=JSON.parse(activeRaw(ui.values));assert.deepEqual(after.scenario.indicatorSettings.movingAverages.map(l=>l.id),[lines[0].id,lines[2].id]);assert.deepEqual(after.state,before.state);assert.match(ui.els.get('indicator-feedback').textContent,/已移除 SMA 20/);assert.equal(after.scenario.indicatorHistory.length,before.scenario.indicatorHistory.length+1);
+ const reloaded=await mount(activeRaw(ui.values));assert.equal((reloaded.els.get('indicator-chips').innerHTML.match(/>移除<\/button>/g)??[]).length,2);
+});
+
+test('indicator menu Escape and preset restore keyboard focus with fresh feedback',async()=>{
+ const ui=await mount(),button=ui.els.get('open-indicators'),menu=ui.els.get('indicator-menu');menu.hidden=true;let firstFocused=false;menu.querySelector=()=>({focus(){firstFocused=true}});
+ button.handlers.click();assert.equal(menu.hidden,false);assert.equal(firstFocused,true);menu.handlers.keydown({key:'Escape'});assert.equal(menu.hidden,true);assert.equal(button.focused,true);
+ button.focused=false;ui.els.get('indicator-options').handlers.click({target:{closest:()=>({dataset:{preset:'5,20'}})}});assert.equal(button.focused,true);assert.match(ui.els.get('indicator-feedback').textContent,/已加入 SMA 5 \/ 20/);
 });

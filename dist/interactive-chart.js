@@ -1,4 +1,4 @@
-import { movingAverageInstances, movingAverageSeriesKey } from './indicators.js?v=preview-v12';
+import { movingAverageInstances, movingAverageSeriesKey } from './indicators.js?v=preview-v15';
 // Local-only chart: its entire data boundary is the already revealed bars supplied by the caller.
 export function clampRange(total, start = total - 60, count = 60) {
   total = Math.max(0, Math.floor(Number(total) || 0));

@@ -1,0 +1,23 @@
+// Local preparation only. Does not edit release registry/default or original dataset.
+import fs from 'node:fs';import crypto from 'node:crypto';
+import {datasetVersion} from '../dist/persistence.js';
+const input='/workspace/shared/0050-history-extension/candidate-dataset.json';
+const actionPath='/workspace/shared/0050-corporate-actions-extension/corporate-actions-full-candidate.json';
+const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const data=read(input),original=read('dist/dataset.json'),actions=read(actionPath),corporate=read('/workspace/shared/0050-corporate-actions-extension/coverage-and-gaps.json');
+if(data.instrument!==original.instrument||data.bars.length!==5580||data.bars[0].date!=='2004-02-11'||data.bars.at(-1).date!=='2026-10-19')throw Error('Unexpected history input');
+const byDate=new Map(data.bars.map(b=>[b.date,b]));for(const b of original.bars)if(JSON.stringify(b)!==JSON.stringify(byDate.get(b.date)))throw Error('Original bar changed '+b.date);
+if(actions.length!==33||actions.filter(a=>a.type==='split').length!==1)throw Error('Unexpected actions');
+data.corporateActions=actions;data.assetClass='etf';
+data.requestedSpan={from:'2004-02-11',to:'2026-10-19'};
+data.randomStart={...data.randomStart,latestStartIndex:data.bars.length-20};
+data.priceCoverage={status:'pending-independent-calendar-and-price-review',bars:data.bars.length,barsByYear:Object.fromEntries([...new Set(data.bars.map(b=>b.date.slice(0,4)))].map(y=>[y,data.bars.filter(b=>b.date.startsWith(y)).length]))};
+data.coverageStatus='Local candidate only: full collected prices and verified cashflows; calendar and price-flag review pending. News remains selected 2019–2025 releases only.';
+data.corporateActionCoverage={cashDividendActions:32,splitActions:1,cashflowCoverage:corporate.cashflowCoverage,unknownAnnouncementExDates:corporate.missingAnnouncementDates,unknownPaymentDates:corporate.unknownPaymentDates,suspensionCoverage:corporate.suspensionCoverage};
+data.knownSuspensions=corporate.knownSuspensions;
+data.historyExtension={requestedStart:'2004-02-11',requestedEnd:'2026-10-19',collectionStatus:'price-bars-complete',auditStatus:'pending independent calendar and jump review',priceBasis:'Official nominal unadjusted OHLCV. No interpolated bars. Original snapshot unchanged.'};
+const coverage={news:{status:'selected',ranges:[{start:'2019-01-01',end:'2025-12-31'}]},corporateActions:{status:'verified',ranges:[{start:'2004-02-11',end:'2026-10-19'}],announcementStatus:'partial'},unexplainedGaps:[]};
+const manifest=read('dist/dataset-manifest.json');manifest.datasets.push({id:'0050-expanded-candidate',instrument:'0050',label:'擴充資料候選版（待價格檢查）',path:'./dataset-expanded-candidate.json',hash:await datasetVersion(data),coverage});
+fs.mkdirSync('candidates',{recursive:true});fs.writeFileSync('candidates/dataset-expanded-candidate.json',JSON.stringify(data,null,2)+'\n');fs.writeFileSync('candidates/dataset-manifest.json',JSON.stringify(manifest,null,2)+'\n');
+fs.writeFileSync('candidates/integration-evidence.json',JSON.stringify({releaseApproved:false,priceInputSha256:crypto.createHash('sha256').update(fs.readFileSync(input)).digest('hex'),actionInputSha256:crypto.createHash('sha256').update(fs.readFileSync(actionPath)).digest('hex'),datasetHash:manifest.datasets.at(-1).hash,bars:5580,dividends:32,splits:1,originalBarsPreserved:1696,pending:['complete official calendar comparison','independent jump-flag classification'],warning:'No unresolved gaps asserted yet: this candidate is not release eligible until independent QA supplies complete classification.'},null,2)+'\n');
+console.log(manifest.datasets.at(-1).hash);

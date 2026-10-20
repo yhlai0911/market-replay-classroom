@@ -21,3 +21,9 @@ v9 新局預設使用擴充資料版，包含 2004-02-11 至 2026-10-19 的 5,58
 以 dist/dataset-manifest.json 查詢快照路徑、canonical JSON hash 與覆蓋資訊。新增快照應使用新檔名並保留原快照，避免改變既有存檔的重播結果。只有同站相對 JSON 路徑可載入。
 
 執行 npm test 驗證跨版本存取、存檔還原與報告行為；執行 npm run check 驗證快照 hash、靜態資產與來源標示。GitHub Pages 僅部署 dist/。
+
+## News-enriched optional snapshot
+
+`0050-news-20261019` adds reviewed selected domestic and international events to the expanded price snapshot. Its 5,580 bars and 33 corporate actions remain exactly equal to `0050-expanded-20261019`; the seed window selection inputs do not change. It contains 362 releases (185 inherited unchanged plus 177 additional releases after one canonical-source duplicate was excluded). The existing expanded snapshot remains the default until separately approved.
+
+`newsValidation.inheritedFrom` refers to the immutable expanded snapshot hash, and every inherited event must match its original JSON value exactly. All additions pass the strict publication timestamp schema, including source-zone next-midnight handling for date-only releases. The evidence records full schema checking and risk-based source/content sampling, not an assertion that all articles were independently reread in full. Raw collected source archives are not bundled in the student application.

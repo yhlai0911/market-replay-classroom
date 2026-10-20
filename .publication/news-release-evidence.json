@@ -1,0 +1,13 @@
+{
+  "status": "PASS_CHECKED_SCOPE",
+  "taiwanInputSha256": "973e755a7282cce4cf8f97649f6a2ddca951f656a090006e2fef412a72d4d4d6",
+  "globalInputSha256": "f39b52ad7912e10ae87913837fb40c069cfb5e5f90c4922e1d938c10fa905f9e",
+  "total": 362,
+  "newEvents": 177,
+  "inheritedEvents": 185,
+  "scope": "All added events validated for schema and timestamps; source/content risk-based sample reviewed, not every article independently reviewed in full. One duplicate canonical source URL omitted.",
+  "canonicalHash": "sha256:4868342513f0f40a188900de6b2e4347f8ff58fcd9cf7117ba22875d740faf10",
+  "byteSha256": "b770786e05be4cef903cacfc0c215c87db75228109645ff8f6614e1f864bbbca",
+  "pricesUnchanged": true,
+  "corporateActionsUnchanged": true
+}

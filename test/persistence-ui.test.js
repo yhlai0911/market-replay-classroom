@@ -2,7 +2,7 @@ import {LEGACY_COST_MODEL,ETF_V1_COST_MODEL,transactionCosts,maxAffordableQuanti
 import {createPracticeStore,PRACTICE_STORE_KEY} from '../dist/practice-store.js';
 import {initializeSession,setIndicatorSettings,REVEAL_KEY} from '../dist/session.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {datasetVersion,makeSave,restoreSave,emptyDraft,SAVE_KEY} from '../dist/persistence.js';import {createScenario} from '../dist/scenario.js';import {fresh,decide} from '../dist/engine.js';
+import {datasetVersion,makeSave,restoreSave,emptyDraft,SAVE_KEY} from '../dist/persistence.js';import {createScenario} from '../dist/scenario.js';import {fresh,decide,visible} from '../dist/engine.js';
 const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),data=JSON.parse(fs.readFileSync(new URL('../dist/dataset.json',import.meta.url))),version=await datasetVersion(data);
 const s=createScenario(data,{seed:'persist-ui',startDate:'2019-11-08',length:20,startYear:'2019'});
 function activeRaw(values){const raw=values.get(PRACTICE_STORE_KEY);if(!raw)return values.get(SAVE_KEY);const x=JSON.parse(raw),save=structuredClone(x.records.find(r=>r.id===x.activeId)?.save);if(!save)return null;delete save.practice;return JSON.stringify(save);}
@@ -11,7 +11,7 @@ async function mount(raw=null,{failWrites=false,library=null,candidate=false,rev
  const values=new Map(raw===null?[]:[[SAVE_KEY,raw]]),els=new Map([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,{id,value:id==='length'?'20':id==='start-year'?'all':id==='quantity'?'100':'',innerHTML:'',textContent:'',options:[{value:''}],nextElementSibling:{},style:{},hidden:false,disabled:false,handlers:{},focus(){this.focused=true},addEventListener(e,f){this.handlers[e]=f},reset(){radios.forEach(r=>r.checked=r.value==='buy');els.get('quantity').value='100';els.get('reason').value=''}}]));
  if(library)values.set(PRACTICE_STORE_KEY,library);if(revealRegistry)values.set(REVEAL_KEY,JSON.stringify(revealRegistry));
  const radios=['buy','sell','hold'].map(value=>({value,checked:value==='buy',handlers:{},addEventListener(e,f){this.handlers[e]=f}}));
- globalThis.document={getElementById:x=>els.get(x),querySelectorAll:()=>radios};globalThis.fetch=async path=>({ok:true,json:async()=>path==='./dataset-manifest.json'?(()=>{const m=JSON.parse(fs.readFileSync(new URL('../dist/dataset-manifest.json',import.meta.url)));if(!candidate)m.datasets=m.datasets.slice(0,1);m.defaultId=m.datasets[0].id;return m;})():path==='./dataset-0050-20040211-20261019.json'?JSON.parse(fs.readFileSync(new URL('../dist/dataset-0050-20040211-20261019.json',import.meta.url))):data});globalThis.FormData=class{get(){return radios.find(r=>r.checked).value}};globalThis.confirm=()=>true;
+ globalThis.document={getElementById:x=>els.get(x),querySelectorAll:()=>radios};globalThis.fetch=async path=>({ok:true,json:async()=>path==='./dataset-manifest.json'?(()=>{const m=JSON.parse(fs.readFileSync(new URL('../dist/dataset-manifest.json',import.meta.url)));if(!candidate)m.datasets=m.datasets.slice(0,1);m.defaultId=m.datasets[0].id;return m;})():path==='./dataset-0050-news-20261019.json'?JSON.parse(fs.readFileSync(new URL('../dist/dataset-0050-news-20261019.json',import.meta.url))):path==='./dataset-0050-20040211-20261019.json'?JSON.parse(fs.readFileSync(new URL('../dist/dataset-0050-20040211-20261019.json',import.meta.url))):data});globalThis.FormData=class{get(){return radios.find(r=>r.checked).value}};globalThis.confirm=()=>true;
  if(failWrites&&raw){const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};createPracticeStore(storage,{validate:r=>restoreSave(r,data,version)}).read();}
  globalThis.localStorage={getItem:k=>values.get(k)??null,setItem(k,v){if(failWrites)throw Error('quota');values.set(k,v)}};
  await import(`../dist/app.js?storage-ui=${id++}`);
@@ -246,4 +246,15 @@ test('indicator menu Escape and preset restore keyboard focus with fresh feedbac
  const ui=await mount(),button=ui.els.get('open-indicators'),menu=ui.els.get('indicator-menu');menu.hidden=true;let firstFocused=false;menu.querySelector=()=>({focus(){firstFocused=true}});
  button.handlers.click();assert.equal(menu.hidden,false);assert.equal(firstFocused,true);menu.handlers.keydown({key:'Escape'});assert.equal(menu.hidden,true);assert.equal(button.focused,true);
  button.focused=false;ui.els.get('indicator-options').handlers.click({target:{closest:()=>({dataset:{preset:'5,20'}})}});assert.equal(button.focused,true);assert.match(ui.els.get('indicator-feedback').textContent,/已加入 SMA 5 \/ 20/);
+});
+test('news-enriched optional snapshot creates independent saved version with anonymous coverage and retains prior practice',async()=>{
+ const ui=await mount(null,{candidate:true}),before=JSON.parse(activeRaw(ui.values));ui.els.get('new-dataset').value='0050-news-20261019';ui.els.get('new-dataset').handlers.change();ui.els.get('new-practice').handlers.click();
+ const after=JSON.parse(activeRaw(ui.values));assert.notEqual(after.datasetVersion,before.datasetVersion);assert.match(ui.els.get('scenario-desc').textContent,/國內外事件精選資料/);assert.match(ui.els.get('macro').innerHTML,/362/);assertOperationHidden(ui.els);assert.equal(JSON.parse(ui.values.get(PRACTICE_STORE_KEY)).records.length,2);
+});
+
+test('news rendered card count and cumulative count share the exact public cutoff including action announcements',async()=>{
+ const d=JSON.parse(fs.readFileSync(new URL('../dist/dataset-0050-news-20261019.json',import.meta.url))),v=await datasetVersion(d),scenario=createScenario(d,{seed:'news-count',startDate:'2020-10-05',length:20});initializeSession(scenario);const st=fresh(scenario),save=makeSave(scenario,st,v,emptyDraft()),ui=await mount(JSON.stringify(save),{candidate:true}),known=visible(scenario,st).news;
+ assert.equal((ui.els.get('news').innerHTML.match(/class="news-item"/g)??[]).length,known.length);assert.match(ui.els.get('news-count').textContent,new RegExp('累計 '+known.length+'$'));
+ const ids=new Set(d.events.map(n=>n.id)),releases=known.filter(n=>ids.has(n.id)),actions=known.filter(n=>!ids.has(n.id));assert.ok(actions.length>0);assert.equal(releases.length+actions.length,known.length);
+ const cutoff=Date.parse(visible(scenario,st).cutoff);assert.ok(known.every(n=>Date.parse(n.availableAt??n.publishedAt)<=cutoff));
 });

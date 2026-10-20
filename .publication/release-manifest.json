@@ -3,7 +3,9 @@
   "review_basis": "TWSE OGDL comparable fields and factual extraction; see SOURCES.md for scope and uncertainties",
   "dataset_sha256": "7024923668af9471d41df6757c93e402ffe703b270fd4ca6a2233706edade203",
   "no_blanket_third_party_license_claim": true,
-  "dataset_catalog_sha256": "8b7da0617683726fb20235e32e5350658e6f65acba97312e185fbaa955944eb8",
+  "dataset_catalog_sha256": "78f64313204edd5158eb4ce21b1242ccee35a76960a851ea3bd224ee6a52f44a",
   "expanded_dataset_sha256": "3ebfd58dbb22276d2182118b6c5a6d5c255568f3fbe3446e09df25074172ae02",
-  "expanded_dataset_canonical_hash": "sha256:78923f3d41d65a0eecb9b8d1d00940dbd013ab3c9fb9476872764d8da8d3e55a"
+  "expanded_dataset_canonical_hash": "sha256:78923f3d41d65a0eecb9b8d1d00940dbd013ab3c9fb9476872764d8da8d3e55a",
+  "news_dataset_sha256": "b770786e05be4cef903cacfc0c215c87db75228109645ff8f6614e1f864bbbca",
+  "news_dataset_canonical_hash": "sha256:4868342513f0f40a188900de6b2e4347f8ff58fcd9cf7117ba22875d740faf10"
 }

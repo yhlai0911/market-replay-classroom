@@ -1,7 +1,7 @@
-import {modelFor,normalizeCostModel,LEGACY_COST_MODEL} from './costs.js?v=preview-v12';
-import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js?v=preview-v12';
-import {createScenario,assetClassFor} from './scenario.js?v=preview-v12';
-import {fresh,decide} from './engine.js?v=preview-v12';
+import {modelFor,normalizeCostModel,LEGACY_COST_MODEL} from './costs.js?v=preview-v15';
+import {defaultIndicatorSettings,normalizeIndicatorSettings} from './indicators.js?v=preview-v15';
+import {createScenario,assetClassFor} from './scenario.js?v=preview-v15';
+import {fresh,decide} from './engine.js?v=preview-v15';
 export const SAVE_KEY='market-replay-save-v1', BACKUP_KEY='market-replay-previous-v1';
 export async function datasetVersion(data){const bytes=new TextEncoder().encode(JSON.stringify(data));const digest=await crypto.subtle.digest('SHA-256',bytes);return 'sha256:'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
 const fail=message=>{throw Error(message)};

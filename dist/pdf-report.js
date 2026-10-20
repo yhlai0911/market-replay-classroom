@@ -1,7 +1,7 @@
-import {newsView} from './blind.js?v=preview-v12';
-import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportNumber,reportPercent,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage,reportTaxRecalculation} from './report-context.js?v=preview-v12';
-import {performanceModel} from './performance.js?v=preview-v12';
-import {visible} from './engine.js?v=preview-v12';
+import {newsView} from './blind.js?v=preview-v15';
+import {reportContext,reportConfiguration,settingsText,movingAverageSummary,reportNumber,reportPercent,reportSettingsIndex,settingsDelta,reportCostLabel,reportCostDescription,reportCostSources,reportHasTax,reportDatasetLabel,reportDataCoverage,reportTaxRecalculation} from './report-context.js?v=preview-v15';
+import {performanceModel,performanceComparisonRows,RISK_METHODS,riskMetricText} from './performance.js?v=preview-v15';
+import {visible} from './engine.js?v=preview-v15';
 const F=reportNumber;
 const P=reportPercent;
 const modelLegacy=s=>!reportHasTax(s);
@@ -29,7 +29,7 @@ export async function performancePdf(s,state,options={},dependencies){
   const glyphWidths=new Map();
   function wrap(value,width,size){const result=[];const measure=ch=>{if(!glyphWidths.has(ch))glyphWidths.set(ch,font.widthOfTextAtSize(ch,1));return glyphWidths.get(ch)*size;};for(const raw of clean(value).split('\n')){let row='',used=0;const tokens=raw.match(/[A-Za-z0-9_#\[\].:\/-]+|./gu)??[];for(const token of tokens){const tw=Array.from(token).reduce((sum,ch)=>sum+measure(ch),0);if(tw<=width){if(row&&used+tw>width){result.push(row);row='';used=0;}row+=token;used+=tw;}else{for(const ch of token){const cw=measure(ch);if(row&&used+cw>width){result.push(row);row='';used=0;}row+=ch;used+=cw;}}}result.push(row);}return result;}
 
-  function para(value,{size=10,color=C.ink,width=CW,indent=0,gap=9}={}){for(const row of wrap(value,width,size)){need(size*1.65);text(row,M+indent,y,size,color);y+=size*1.65;}y+=gap;}
+  function para(value,{size=10,color=C.ink,width=CW,indent=0,gap=9}={}){const lines=wrap(value,width,size);lines.forEach((row,i)=>{need(size*1.65*((i===0||i===lines.length-2)&&lines.length>1?2:1));text(row,M+indent,y,size,color);y+=size*1.65;});y+=gap;}
   function heading(n,title){need(40);text(n,M,y,10,C.teal);text(title,M+30,y-3,17);y+=31;}
   function rows(headers,data,widths){const draw=(cells,head=false)=>{const lines=cells.map((v,i)=>wrap(v,widths[i]-14,head?8.5:9));const h=Math.max(...lines.map(a=>a.length))*14+14;if(y+h>H-57){newPage();draw(headers,true);}if(head)rect(M,y,CW,h,C.ink);else if(rowIndex%2===0)rect(M,y,CW,h,C.pale);let x=M;lines.forEach((ls,i)=>{ls.forEach((v,k)=>text(v,x+7,y+6+k*14,head?8.5:9,head?C.white:C.ink));x+=widths[i];});y+=h;};let rowIndex=0;draw(headers,true);for(const r of data){draw(r);rowIndex++;}y+=14;}
   function chart(points,keys,title,{height=175,percent=false,drawdown=false}={}){need(height+44);text(title,M,y,12);y+=26;const top=y,left=M+47,right=W-M-9,bottom=top+height-30;let values=points.flatMap(p=>keys.map(k=>p[k]));let lo=Math.min(...values),hi=Math.max(...values);if(hi===lo){lo-=1;hi+=1;}const pad=(hi-lo)*.1;lo-=pad;hi=drawdown?0:hi+pad;const X=i=>left+i/Math.max(1,points.length-1)*(right-left),Y=v=>bottom-(v-lo)/(hi-lo)*(bottom-top);for(let i=0;i<4;i++){const v=lo+(hi-lo)*i/3;line(left,Y(v),right,Y(v));text(F(v)+(percent?'%':''),M,Y(v)-5,7.3,C.muted);}keys.forEach((key,j)=>{const c=j?C.blue:C.teal;for(let i=1;i<points.length;i++)line(X(i-1),Y(points[i-1][key]),X(i),Y(points[i][key]),c,1.6);if(points.length===1)page.drawCircle({x:X(0),y:H-Y(points[0][key]),size:2,color:c});});text('初始',left,bottom+9,8,C.muted);text(points.at(-1).date??'尚無決策',right-75,bottom+9,8,C.muted);y=top+height+9;}
@@ -43,12 +43,17 @@ export async function performancePdf(s,state,options={},dependencies){
   if(String(options.practiceName??'').trim())para(`練習名稱：${options.practiceName}`,{size:10,color:C.muted});
   if(s.taxRecalculation)para(reportTaxRecalculation(s),{size:9,color:C.muted});
   if(!modelLegacy(s))para(reportCostLabel(s),{size:9,color:C.teal,gap:5});
-  const cards=[[modelLegacy(s)?'淨報酬（未含證交稅）':'投資組合淨報酬',P(m.portfolioReturn)],['買入持有基準',P(m.benchmarkReturn)],['相對基準報酬差',`${F(m.relativeReturn)} 個百分點`],['淨損益（TWD）',`${m.currentAssets-m.initialAssets>0?'+':''}${F(m.currentAssets-m.initialAssets)}`],['收盤最大回撤',`${F(m.maxDrawdown)}%`],['累計費稅合計（TWD）',F(m.totalCosts)]];
+  const cardRisk=metric=>metric.value===null?'N/A':riskMetricText(metric,true);
+  const cards=[[modelLegacy(s)?'淨報酬（未含證交稅）':'投資組合淨報酬',cardRisk(m.risk.strategy.totalReturn)],['買入持有基準',cardRisk(m.risk.benchmark.totalReturn)],['相對基準報酬差',m.completed?`${F(m.relativeReturn)} 個百分點`:'N/A'],['淨損益（TWD）',`${m.currentAssets-m.initialAssets>0?'+':''}${F(m.currentAssets-m.initialAssets)}`],['收盤最大回撤',cardRisk(m.risk.strategy.maxDrawdown)],['累計費稅合計（TWD）',F(m.totalCosts)]];
   const cardW=(CW-20)/3,cardY=y;cards.forEach(([label,value],i)=>{const x=M+(i%3)*(cardW+10),t=cardY+Math.floor(i/3)*82;rect(x,t,cardW,72,C.pale);text(label,x+12,t+11,9,C.muted);text(value,x+12,t+35,i===2?13:18,C.ink);});y+=177;
   chart(m.points,['portfolioReturn','benchmarkReturn'],'累積報酬走勢  /  共同起點 0%',{height:190,percent:true});
   para('綠線：投資組合（已扣本局模型費稅）   藍線：買入持有基準',{size:8.5,color:C.muted});
   rows(['初始資產 TWD','目前／期末總資產 TWD','買入持有基準資產 TWD'],[[F(m.initialAssets),F(m.currentAssets),F(m.benchmarkAssets)]],[CW/3,CW/3,CW/3]);
   para('報酬含已取得配息權利；未強制清算。單一短期樣本不能證明策略有效，報酬差亦不代表風險調整後超額報酬。',{size:9,color:C.muted});
+  newPage('報酬與風險比較');heading('','策略與買入持有');
+  para(`共同觀測：初始資金＋${m.completed} 個已完成交易日收盤。期間報酬不年化；未送出決策不計入。`,{size:9,color:C.muted});
+  rows(['績效指標','策略','買入持有'],performanceComparisonRows(m,{revealDates:context.visible}),[CW*.32,CW*.34,CW*.34]);
+  para('rf＝0、MAR＝0、252 交易日／年。'+(m.completed<252?'短樣本年化只是尺度換算，不是一年預測。':'樣本比率不代表未來績效。'),{size:9,color:C.muted});
   newPage('風險、成本與部位');heading('01','資產配置與執行分析');
   rows(['資產組成','金額（TWD）','占總資產'],[['可用現金',F(m.cash),`${F(m.cash/m.currentAssets*100)}%`],['持倉市值',F(m.holdingValue),`${F(m.currentExposure)}%`],['應收配息',F(m.receivables),`${F(m.receivables/m.currentAssets*100)}%`],['總資產',F(m.currentAssets),'100.00%']],[CW*.42,CW*.3,CW*.28]);
   if(modelLegacy(s))para(reportCostDescription(s),{size:9,color:C.muted});
@@ -75,10 +80,10 @@ export async function performancePdf(s,state,options={},dependencies){
     const ids=[...new Set(r.newsIds??[])].filter(id=>news.has(id)&&(news.get(id).availableAt??news.get(id).publishedAt)<=r.at);const listed=ids.filter(id=>detailedNews.has(id));const nums=listed.map(id=>{if(!refs.has(id))refs.set(id,refs.size+1);return refs.get(id);}).sort((a,b)=>a-b);
     const compressed=[];for(let k=0;k<nums.length;k++){const start=nums[k];let end=start;while(k+1<nums.length&&nums[k+1]===end+1)end=nums[++k];compressed.push(start===end?`${start}`:`${start}-${end}`);}
     para(`當時可見資訊 ${ids.length} 則；相關新聞：${compressed.length?'附錄 '+compressed.join('、'):'無新增或明確提及參照'}。`,{size:8,color:C.muted,gap:5});line(M,y,W-M,y);y+=11;});
-  need(110);section='學生筆記與反思';para('以下保留使用者原文，不改寫。自由輸入可能自行透露日期、標的或其他身份資訊。',{size:9,color:C.muted});heading('04','完整操作筆記');para(options.notes||'（未填寫）');heading('05','事後反思');para(options.reflection||'（未填寫）');
+  need(110);section='學生筆記與反思';para('以下保留使用者原文，不改寫。自由輸入可能自行透露日期、標的或其他身份資訊。',{size:9,color:C.muted});heading('04','完整操作筆記');para(options.notes||'（未填寫）');heading('05','事後反思');para(options.reflection||'（未填寫）',{size:9.5});
   if(String(options.reason??'').trim()){heading('06','尚未送出的決策草稿');para(`方向：${labels[options.side]??options.side}；委託單位：${options.side==='hold'?'不適用':options.quantity}\n此草稿尚未執行，不計入績效。`,{color:C.muted});para(options.reason);}
   newPage('計算口徑與資料來源');heading('07','方法與限制');para(`資料版本：${reportDatasetLabel(s,state)}`,{size:10,color:C.teal});para(reportDataCoverage(s,state),{size:9.5});
-  const methods=[`總資產＝現金＋持倉市值＋應收配息。${state.finished?'期末使用最後完成交易日收盤價':'目前使用當時已知昨收價'}，未扣假設平倉費用。淨損益＝總資產－初始資產；報酬＝淨損益／初始資產。本局模型費稅已於交易時扣除，不重複扣減。`,'買入持有基準：首日開盤以相同初始資金買入可負擔整數單位，使用相同買入手續費規則（含適用最低費及取整），保留零頭現金；計入分割與取得的配息權利，不再投資。相對報酬為兩個報酬率之差，單位為百分點。','圖表只使用初始資產和已完成決策收盤觀測。成交金額為買賣成交價×成交單位的絕對金額總和；周轉指標以其除以初始資產，並非雙邊平均資產周轉率。','不提供年化報酬、Sharpe 或交易勝率：短期樣本與未平倉部位不足以支持可靠年化或完整已實現損益歸因。',reportCostDescription(s),reportCostSources(context.visible),'配息以除息前持倉取得權利；發放日開盤前入帳為教學簡化，未驗證券商實際時刻。','新聞為精選子集，不代表完整當時資訊；歷史存檔可能有重發或修訂。僅列當時已可見資料，不含未揭露行情。來源機構不為本教學報告背書。報告可自行產生，不是經驗證的交易或考試憑證。',`${context.visible?'情境：'+s.title+'\n資料可見截止：'+v.cutoff:'匿名報告：真實情境與歷史截止日期已隱藏'}\n產生時間（UTC）：${generated}`];methods.forEach(x=>para(x,{size:9.5}));
+  const methods=[`總資產＝現金＋持倉市值＋應收配息。${state.finished?'期末使用最後完成交易日收盤價':'目前使用當時已知昨收價'}，未扣假設平倉費用。淨損益＝總資產－初始資產；報酬＝淨損益／初始資產。本局模型費稅已於交易時扣除，不重複扣減。`,'買入持有基準：首日開盤以相同初始資金買入可負擔整數單位，使用相同買入手續費規則（含適用最低費及取整），保留零頭現金；計入分割與取得的配息權利，不再投資。相對報酬為兩個報酬率之差，單位為百分點。','圖表只使用初始資產和已完成決策收盤觀測。成交金額為買賣成交價×成交單位的絕對金額總和；周轉指標以其除以初始資產，並非雙邊平均資產周轉率。',...RISK_METHODS,reportCostDescription(s),reportCostSources(context.visible),'配息以除息前持倉取得權利；發放日開盤前入帳為教學簡化，未驗證券商實際時刻。','新聞為精選子集，不代表完整當時資訊；歷史存檔可能有重發或修訂。僅列當時已可見資料，不含未揭露行情。來源機構不為本教學報告背書。報告可自行產生，不是經驗證的交易或考試憑證。',`${context.visible?'情境：'+s.title+'\n資料可見截止：'+v.cutoff:'匿名報告：真實情境與歷史截止日期已隱藏'}\n產生時間（UTC）：${generated}`];methods.forEach(x=>para(x,{size:9.5}));
   newPage('設定明細與資料依據');heading('08','設定明細與資料依據');para(reportConfiguration(s,state),{size:9.5});
   heading('09','設定歷程與參數版本');para('每次調整均保留；完成 N 筆後的設定適用下一筆，同一步最後一筆生效。P 編號代表完整參數版本，相同內容只列一次。每筆決策仍以原設定 # 編號核對。',{size:9,color:C.muted});
   if(!settingIndex.timeline.length)para('未記錄指標歷程；不能回推當時設定。',{size:9});

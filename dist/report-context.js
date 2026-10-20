@@ -1,4 +1,5 @@
-import {modelFor} from './costs.js?v=preview-v12';
+import {blindText} from './blind.js?v=preview-v15';
+import {modelFor} from './costs.js?v=preview-v15';
 /** Shared presentation policy. It never edits a learner's authored text. */
 export function reportContext(s,state){
   const completed=Boolean(state.finished)||state.journal.length>=s.rounds.length;
@@ -88,7 +89,25 @@ export function reportDataCoverage(s,state){
  if(gaps.some(g=>g.start<=end&&g.end>=start))lines.push('警示：本回合與未解釋的價格資料缺口重疊，不宜視為連續完整樣本。');
  else if(gaps.length)lines.push('此資料版本含未解釋的價格缺口；本回合未跨越已標記缺口。');
  if(c.visible){const ranges=(items=[])=>items.map(r=>`${r.start} 至 ${r.end}`).join('；')||'未提供';lines.push(`版本新聞收錄區間：${ranges(news?.ranges)}`,`公司行動核實區間：${ranges(actions?.ranges)}；${actions?.status==='verified'?'權益資料已核實':'權益資料仍有待核實'}；${actions?.announcementStatus==='partial'?'部分公告時間尚未核實':actions?.announcementStatus==='verified'?'公告時間已核實':'公告時間完整性尚待確認'}`);}
+ const newsDetails=reportNewsCoverage(s,state);if(newsDetails)lines.push(newsDetails);
  return lines.join('\n');
 }
 
 export function reportTaxRecalculation(s){return s.taxRecalculation?`此練習由「${s.taxRecalculation.sourcePracticeName||'原練習'}」補計證交稅另存；手續費設定相同。`:'';}
+
+
+/** Whole-material statistics, distinct from information visible at a decision. */
+export function reportNewsCoverage(s,state){
+ const news=s.dataCoverage?.news;if(!news)return '';
+ const visible=reportContext(s,state).visible,summary=news.summary,lines=[];
+ const count=n=>Number.isSafeInteger(n)&&n>=0;
+ const safe=text=>visible?String(text):blindText(text,s).replace(/\b(?:19|20)\d{2}\b/g,'[年份隱藏]');
+ const regions={TW:'台灣',US:'美國',CN:'中國',EU:'歐洲',JP:'日本',GB:'英國',UK:'英國',GLOBAL:'全球',global:'全球',international:'國際'};
+ const categories={politics:'政治',political:'政治',election:'選舉',elections:'選舉',policy:'政策',monetary_policy:'貨幣政策',interest_rate:'利率',rates:'利率',inflation:'通膨',employment:'就業',gdp:'經濟成長',economy:'經濟',economic:'經濟',macro:'總體經濟',trade:'貿易',trade_policy:'貿易政策',geopolitics:'國際政經',market:'金融市場',markets:'金融市場',finance:'金融',public_health:'公共衛生',health:'公共衛生',corporate:'企業',corporate_action:'公司行動',other:'其他'};
+ const distribution=(items,labels,fallback)=>{const groups=new Map();for(const [key,n]of Object.entries(items??{})){if(!count(n))continue;const label=labels[key]??(/[\u3400-\u9fff]/u.test(key)?safe(key):fallback);groups.set(label,(groups.get(label)??0)+n);}return [...groups].map(([label,n])=>`${label} ${n} 則`).join('、');};
+ if(summary){if(count(summary.total))lines.push(`教材共收錄 ${summary.total} 則公告與新聞精選；以下是整份教材的分布，不代表本局當時可見、已閱讀或引用的則數。`);const regional=distribution(summary.regions,regions,'其他地區'),categorical=distribution(summary.categories,categories,'其他類別');if(regional)lines.push('地區分布：'+regional+'。');if(categorical)lines.push('主題分布：'+categorical+'。');const precision=[];if(count(summary.precise))precision.push(`有明確發布時刻 ${summary.precise} 則`);if(count(summary.dateOnly))precision.push(`僅有發布日期 ${summary.dateOnly} 則`);if(precision.length)lines.push('發布時間資料：'+precision.join('；')+'。僅有日期的消息採保守可見時間。');}
+ if(Array.isArray(news.limitations))for(const limitation of news.limitations)if(typeof limitation==='string'&&limitation.trim())lines.push(safe(limitation));
+ if(summary||news.limitations?.length)lines.push('公告與新聞是精選材料，不是完整歷史新聞庫。即使隱藏日期與標的，政治事件及背景仍可能讓人推知年代。');
+ if(visible&&news.yearCounts){const years=Object.entries(news.yearCounts).filter(([year,n])=>/^\d{4}$/.test(year)&&count(n)).sort(([a],[b])=>a.localeCompare(b));if(years.length)lines.push('新聞年份分布：'+years.map(([year,n])=>`${year} 年 ${n} 則`).join('、')+'。');}
+ return lines.join('\n');
+}

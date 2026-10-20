@@ -6,7 +6,7 @@ if(!manifest.review_basis||!manifest.no_blanket_third_party_license_claim)throw 
 for(const f of ['SOURCES.md','dist/source-notice.html'])if(!fs.existsSync(f))throw Error('Missing attribution file: '+f);
 const digest=crypto.createHash('sha256').update(fs.readFileSync('dist/dataset.json')).digest('hex');
 if(digest!==manifest.dataset_sha256)throw Error('Publication blocked: release dataset hash does not match.');
-const allowed=['.nojekyll','index.html','style.css','app.js','chart.js','interactive-chart.js','blind.js','session.js','indicators.js','report-context.js','engine.js','costs.js','cost-replay.js','scenario.js','persistence.js','practice-store.js','report.js','performance.js','pdf-report.js','dataset.json','dataset-0050-20040211-20261019.json','dataset-registry.js','dataset-manifest.json','source-notice.html'];
+const allowed=['.nojekyll','index.html','style.css','app.js','chart.js','interactive-chart.js','blind.js','session.js','indicators.js','report-context.js','engine.js','costs.js','cost-replay.js','news-validation.js','scenario.js','persistence.js','practice-store.js','report.js','performance.js','pdf-report.js','dataset.json','dataset-0050-20040211-20261019.json','dataset-0050-news-20261019.json','dataset-registry.js','dataset-manifest.json','source-notice.html'];
 for(const name of fs.readdirSync('dist').filter(n=>n!=='vendor'))if(!allowed.includes(name)||!fs.lstatSync('dist/'+name).isFile())throw Error('Unreviewed publication file: '+name);
 for(const name of allowed)if(!fs.existsSync('dist/'+name))throw Error('Missing publication file: '+name);
 for(const name of allowed.filter(n=>n.endsWith('.js')))execFileSync(process.execPath,['--check','dist/'+name],{stdio:'inherit'});
@@ -27,3 +27,8 @@ if(crypto.createHash('sha256').update(fs.readFileSync('dist/dataset-manifest.jso
 if(crypto.createHash('sha256').update(fs.readFileSync('dist/dataset-0050-20040211-20261019.json')).digest('hex')!==manifest.expanded_dataset_sha256)throw Error('Expanded snapshot differs from reviewed bytes');
 const evidence=JSON.parse(fs.readFileSync('.publication/history-release-evidence.json'));
 if(evidence.status!=='PASS_CHECKED_SCOPE'||evidence.hardErrors!==0||evidence.unresolvedFlags!==0||evidence.canonicalHash!==manifest.expanded_dataset_canonical_hash||evidence.byteSha256!==manifest.expanded_dataset_sha256)throw Error('Expanded history review gate failed');
+
+const news=JSON.parse(fs.readFileSync('dist/dataset-0050-news-20261019.json')),newsEvidence=JSON.parse(fs.readFileSync('.publication/news-release-evidence.json'));
+if(crypto.createHash('sha256').update(fs.readFileSync('dist/dataset-0050-news-20261019.json')).digest('hex')!==manifest.news_dataset_sha256||newsEvidence.byteSha256!==manifest.news_dataset_sha256||newsEvidence.canonicalHash!==manifest.news_dataset_canonical_hash||newsEvidence.status!=='PASS_CHECKED_SCOPE')throw Error('News snapshot review gate failed');
+const oldExpanded=JSON.parse(fs.readFileSync('dist/dataset-0050-20040211-20261019.json'));
+for(const key of ['bars','corporateActions'])if(JSON.stringify(news[key])!==JSON.stringify(oldExpanded[key]))throw Error('News update changed '+key);

@@ -1,4 +1,4 @@
-import {resolveCostModel} from './costs.js?v=preview-v12';
+import {resolveCostModel} from './costs.js?v=preview-v15';
 export function assetClassFor(data){if(data?.assetClass!==undefined){if(['etf','stock'].includes(data.assetClass))return data.assetClass;throw Error('歷史資料商品類型不支援');}if(data?.instrument==='0050 元大台灣50')return 'etf';throw Error('歷史資料缺少可驗證的商品類型，無法設定交易成本');}
 export function seededIndex(seed,size){let h=2166136261;for(const c of String(seed)){h^=c.codePointAt(0);h=Math.imul(h,16777619);}return (h>>>0)%size;}
 export function eligibleStarts(data,length=20,warmup=40,startYear='all'){if(!Number.isInteger(length)||length<1)throw Error('回合長度必須是正整數');return data.bars.slice(warmup,data.bars.length-length).filter((b,i)=>{if(startYear!=='all'&&!b.date.startsWith(String(startYear)+'-'))return false;const first=data.bars[i].date,last=data.bars[i+warmup+length].date;return !(data.replayCoverage?.unexplainedGaps??[]).some(g=>g.start<=last&&g.end>=first);}).map(b=>b.date);}

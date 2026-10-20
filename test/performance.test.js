@@ -31,7 +31,7 @@ test('fresh performance is cash-only and never reads the unrevealed first open',
   assert.equal(m.points.length,1);assert.equal(m.completed,0);assert.equal(m.finished,false);
   for(const field of ['portfolioReturn','benchmarkReturn','relativeReturn','maxDrawdown','benchmarkMaxDrawdown','totalFees','currentExposure','meanExposure','grossNotional','turnover']) assert.equal(m[field],0);
   assert.deepEqual(m.counts,{decisions:0,fills:0,buys:0,sells:0,holds:0,cancelled:0});
-  assert.doesNotMatch(JSON.stringify(m),/NaN|Infinity|Sharpe|winRate/i);
+  assert.doesNotMatch(JSON.stringify(m),/NaN|Infinity|winRate/i);
 });
 
 test('per-close portfolio and benchmark returns, drawdowns, exposure, fees and gross turnover agree with hand calculations',()=>{

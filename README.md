@@ -83,3 +83,38 @@ Fresh practice defaults to hold, with the quantity disabled until a buy/sell cho
 Invalid zero-holding or over-sized sell choices retain the user's selected direction but show a clear unavailable message, never negative projected holdings or sale proceeds, and disable submission. The simulation still independently rejects the action, so scripted/form bypasses cannot advance a day or create a short position. Valid sell/hold estimates omit buy-only gap-cancellation language.
 
 The report download action is above the expandable student form in a compact sticky report heading. Application modules and CSS carry a shared asset-version URL (`node scripts/version-assets.mjs preview-v3`); the header also confirms the running preview build. This prevents accidental mixed cached module versions during local preview updates. It does not establish that caching caused any previously observed mismatch. JSON import/restore never rewrites past labels: relative labels are generated from the active display code and are covered by a legacy version-two save regression.
+
+
+### Daily-equity risk and risk-adjusted performance
+
+The review screen, standalone HTML report and PDF share `performanceModel` and the same strategy / buy-and-hold comparison. Both series use initial capital plus the same completed trading-day closes, including cash, holdings and dividend rights. Imported saves keep their original dataset and cost model; performance is derived without writing to the journal or cached historical equity. Existing version 1–3 JSON exports/imports remain supported.
+
+The comparison includes period total net return (never annualized), annualized daily volatility, maximum drawdown, deepest/longest/current drawdown duration and recovery status, Sharpe and Sortino. Educational defaults are rf=0, MAR=0 and 252 trading days/year. Volatility and Sharpe use sample standard deviation (N−1); Sortino uses the downside second moment over all N returns. Risk estimates need at least two returns. Zero volatility is a valid volatility of zero, with N/A Sharpe; zero downside produces N/A Sortino. Missing, nonfinite, duplicate or unordered daily observations produce N/A with reasons, without dropping observations. Drawdown durations count trading-day intervals from the latest equal high to first recovery, or to the final observed close when unrecovered. The longest event can differ from the deepest event.
+
+Annualization is a scale convention, not a one-year forecast. Samples below 252 returns are explicitly identified as short samples; one run does not establish statistical superiority, alpha or future performance. No Calmar or trade-win-rate estimate is inferred. Fees, tax, dividend treatment, average exposure and full original transaction details remain in the reports.
+
+To regenerate reports from an existing normal UI backup without starting another simulation:
+
+```sh
+node scripts/recompute-session.mjs /path/to/original-backup.json /path/to/new-output-directory
+```
+
+The output directory must not already exist. The script validates the save against its registered immutable dataset, writes PDF/HTML reports, copies the original backup byte-for-byte, and exports version-1 derived daily equity and risk metrics separately with the original file SHA256. The derived metrics file is an analysis export; resume the session using the preserved original backup. It does not alter the input or invent decisions.
+
+Run the full test suite with the optional preserved 120-day fixture to include its exact reconciliation:
+
+```sh
+MARKET_REPLAY_SESSION_FIXTURE=/path/to/practice-6-completed-120-day-backup.json npm test
+npm run check
+```
+
+Without the private fixture, only that one optional reconciliation test is skipped with an explicit reason. The fixture is intentionally kept outside application assets and source packages.
+
+
+For optional real-browser news boundary acceptance, provide Playwright and Chromium in the cloud development environment, start the static server, then run:
+
+```sh
+node scripts/accept-news-boundary.cjs http://127.0.0.1:4173/ /tmp/new-news-boundary-evidence
+```
+
+This creates a separate browser context and a separate 20-day test practice through normal UI controls. It checks both a precise-time BOJ event and a date-only Taiwan central-bank event before/after their first eligible decision cutoff, reveals dates only in that test context, and verifies anonymous display after refresh. Generated screenshots and the synthetic test backup belong outside the repository; they are not publication assets.
